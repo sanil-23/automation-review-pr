@@ -410,9 +410,10 @@ async function loadDashboard() {
   const urlFilters = getFiltersFromUrl();
   const hasFilters = Object.keys(urlFilters).length > 0;
   if (!hasFilters) {
-    // Default: Ready only + Mergeable
+    // Default: Ready only + Mergeable + CI Passed
     urlFilters.draft = '0';
     urlFilters.mergeable = 'MERGEABLE';
+    urlFilters.ci_status = 'pass';
     setFiltersToUrl(urlFilters);
   }
   setFormFromFilters(urlFilters);
