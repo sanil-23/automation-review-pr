@@ -83,6 +83,12 @@ router.post('/review/:id', (req, res) => {
     job.exitCode = code;
     job.done = true;
     job.endedAt = new Date().toISOString();
+    // Clear status.json so dashboard doesn't show stale running state
+    try {
+      const sf = path.join(BASE_DIR, 'status.json');
+      const st = JSON.parse(fs.readFileSync(sf, 'utf-8'));
+      if (st.pr === prId) fs.writeFileSync(sf, JSON.stringify({ running: false }));
+    } catch {}
     console.log(`[trigger] Review of PR #${prId} finished with code ${code}`);
     // Keep job around for 5 min so the UI can show final state
     setTimeout(() => activeJobs.delete(jobId), 5 * 60 * 1000);
