@@ -458,7 +458,7 @@ async function loadDashboard() {
 // Actions
 // =============================================================
 
-async function triggerReview(prId) {
+async function triggerReview(prId, redirectToDetail) {
   const btn = event.target;
   btn.disabled = true;
   btn.textContent = 'Starting...';
@@ -468,7 +468,10 @@ async function triggerReview(prId) {
     const data = await res.json();
     if (res.ok) {
       btn.textContent = 'Running...';
-      showLiveLog(data.jobId, `Review PR #${prId}`);
+      // If on dashboard, redirect to detail page to see live logs
+      if (redirectToDetail !== false && !document.getElementById('pr-detail')) {
+        window.location.href = `/pr.html?pr=${prId}`;
+      }
     } else {
       alert(data.error || 'Failed to start review');
       btn.disabled = false;
@@ -491,9 +494,7 @@ async function triggerDiscover() {
   try {
     const res = await fetch(`${API}/api/trigger/discover`, { method: 'POST' });
     const data = await res.json();
-    if (res.ok) {
-      showLiveLog('discover', 'Discover & Review');
-    } else {
+    if (!res.ok) {
       alert(data.error || 'Failed to start discovery');
       if (btn) { btn.disabled = false; btn.textContent = 'Discover & Review'; }
     }
@@ -501,95 +502,6 @@ async function triggerDiscover() {
     alert('Failed: ' + err.message);
     if (btn) { btn.disabled = false; btn.textContent = 'Discover & Review'; }
   }
-}
-
-// =============================================================
-// Live Log Viewer
-// =============================================================
-
-let _liveLogInterval = null;
-
-function showLiveLog(jobId, title) {
-  // Remove existing
-  closeLiveLog();
-
-  const overlay = document.createElement('div');
-  overlay.id = 'live-log-overlay';
-  overlay.innerHTML = `
-    <div class="live-log-panel">
-      <div class="live-log-header">
-        <div>
-          <strong>${esc(title)}</strong>
-          <span id="live-log-status" class="running-indicator" style="margin-left:8px">
-            <span class="running-dot"></span> Running...
-          </span>
-        </div>
-        <button class="btn btn-sm" onclick="closeLiveLog()">Close</button>
-      </div>
-      <div class="live-log-content" id="live-log-content"></div>
-      <div class="live-log-footer" id="live-log-footer">
-        <span id="live-log-lines">0 lines</span>
-        <span id="live-log-elapsed"></span>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-
-  let linesSeen = 0;
-  const startTime = Date.now();
-  const content = document.getElementById('live-log-content');
-  const statusEl = document.getElementById('live-log-status');
-  const linesEl = document.getElementById('live-log-lines');
-  const elapsedEl = document.getElementById('live-log-elapsed');
-
-  async function poll() {
-    try {
-      const res = await fetch(`${API}/api/trigger/log/${jobId}?after=${linesSeen}`);
-      if (!res.ok) return;
-
-      const data = await res.json();
-
-      if (data.lines.length > 0) {
-        for (const line of data.lines) {
-          const div = document.createElement('div');
-          div.className = 'live-log-line' + (line.startsWith('[stderr]') || line.startsWith('[error]') ? ' live-log-error' : '');
-          div.textContent = line;
-          content.appendChild(div);
-        }
-        linesSeen = data.total;
-        content.scrollTop = content.scrollHeight;
-      }
-
-      linesEl.textContent = `${linesSeen} lines`;
-      const elapsed = Math.round((Date.now() - startTime) / 1000);
-      elapsedEl.textContent = formatDuration(elapsed);
-
-      if (data.done) {
-        clearInterval(_liveLogInterval);
-        _liveLogInterval = null;
-        const success = data.exitCode === 0;
-        statusEl.innerHTML = success
-          ? '<span class="badge badge-green">Done</span>'
-          : `<span class="badge badge-red">Failed (exit ${data.exitCode})</span>`;
-        // Refresh dashboard data
-        if (typeof fetchAndRender === 'function') fetchAndRender();
-      }
-    } catch (err) {
-      console.error('Live log poll error:', err);
-    }
-  }
-
-  poll();
-  _liveLogInterval = setInterval(poll, 1500);
-}
-
-function closeLiveLog() {
-  if (_liveLogInterval) {
-    clearInterval(_liveLogInterval);
-    _liveLogInterval = null;
-  }
-  const overlay = document.getElementById('live-log-overlay');
-  if (overlay) overlay.remove();
 }
 
 async function forceSync() {
@@ -606,6 +518,9 @@ async function forceSync() {
 // =============================================================
 // PR Detail Page
 // =============================================================
+
+let _liveLogInterval = null;
+let _liveLogLinesSeen = 0;
 
 async function loadPrDetail() {
   const container = document.getElementById('pr-detail');
@@ -628,21 +543,98 @@ async function loadPrDetail() {
     const pr = await res.json();
     renderPrDetail(pr, container);
 
+    // Check for active job and start live log polling
+    checkAndStartLiveLog(prId);
+
+    // Poll for PR status changes
     setInterval(async () => {
       const statusRes = await fetch(`${API}/api/status`);
       const status = await statusRes.json();
       if (status.running && status.pr === parseInt(prId)) {
-        const freshRes = await fetch(`${API}/api/prs/${prId}`);
-        if (freshRes.ok) {
-          const freshPr = await freshRes.json();
-          renderPrDetail(freshPr, container);
-        }
+        // Re-check live log if not already polling
+        if (!_liveLogInterval) checkAndStartLiveLog(prId);
       }
     }, 5000);
 
   } catch (err) {
     container.innerHTML = `<div class="empty-state"><h3>Error loading PR</h3><p>${err.message}</p></div>`;
   }
+}
+
+async function checkAndStartLiveLog(prId) {
+  try {
+    const jobsRes = await fetch(`${API}/api/trigger/jobs`);
+    const jobs = await jobsRes.json();
+    const jobId = `review-${prId}`;
+    if (jobs[jobId]) {
+      startLiveLogPolling(jobId);
+    }
+  } catch {}
+}
+
+function startLiveLogPolling(jobId) {
+  if (_liveLogInterval) return; // already polling
+
+  _liveLogLinesSeen = 0;
+  const startTime = Date.now();
+
+  async function poll() {
+    try {
+      const res = await fetch(`${API}/api/trigger/log/${jobId}?after=${_liveLogLinesSeen}`);
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const section = document.getElementById('live-review-section');
+      if (!section) return;
+
+      // Show the section
+      section.style.display = '';
+
+      const content = document.getElementById('live-review-content');
+      const statusEl = document.getElementById('live-review-status');
+      const footerEl = document.getElementById('live-review-footer');
+
+      if (data.lines.length > 0) {
+        for (const line of data.lines) {
+          const div = document.createElement('div');
+          div.className = 'live-log-line' + (line.startsWith('[stderr]') || line.startsWith('[error]') ? ' live-log-error' : '');
+          div.textContent = line;
+          content.appendChild(div);
+        }
+        _liveLogLinesSeen = data.total;
+        content.scrollTop = content.scrollHeight;
+      }
+
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      footerEl.textContent = `${_liveLogLinesSeen} lines | ${formatDuration(elapsed)}`;
+
+      if (data.done) {
+        clearInterval(_liveLogInterval);
+        _liveLogInterval = null;
+        const success = data.exitCode === 0;
+        statusEl.innerHTML = success
+          ? '<span class="badge badge-green">Completed</span>'
+          : `<span class="badge badge-red">Failed (exit ${data.exitCode})</span>`;
+        footerEl.textContent += success ? ' | Review posted' : ' | Check logs for errors';
+
+        // Refresh the whole detail page after a short delay
+        setTimeout(async () => {
+          const prId = new URLSearchParams(window.location.search).get('pr');
+          const freshRes = await fetch(`${API}/api/prs/${prId}`);
+          if (freshRes.ok) {
+            const freshPr = await freshRes.json();
+            const container = document.getElementById('pr-detail');
+            if (container) renderPrDetail(freshPr, container);
+          }
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Live log poll error:', err);
+    }
+  }
+
+  poll();
+  _liveLogInterval = setInterval(poll, 1500);
 }
 
 function renderPrDetail(pr, container) {
@@ -735,12 +727,21 @@ function renderPrDetail(pr, container) {
         </div>` : ''}
       </div>
 
-      ${pr.is_running ? `<div style="margin-top:12px"><span class="running-indicator"><span class="running-dot"></span>Running Phase ${pr.running_phase || '?'}...</span></div>` : ''}
-      <div style="margin-top:16px;display:flex;gap:8px">
-        <button class="btn btn-primary" onclick="triggerReview(${pr.id})" ${pr.is_running ? 'disabled' : ''}>
+      <div style="margin-top:16px;display:flex;gap:8px;align-items:center">
+        <button class="btn btn-primary" onclick="triggerReview(${pr.id}, false)" ${pr.is_running ? 'disabled' : ''}>
           ${(pr.cycles || []).length > 0 ? 'Trigger Re-review' : 'Trigger Review'}
         </button>
+        ${pr.is_running ? `<span class="running-indicator"><span class="running-dot"></span>Running Phase ${pr.running_phase || '?'}...</span>` : ''}
       </div>
+    </div>
+
+    <div class="section" id="live-review-section" style="display:none">
+      <div class="section-header">
+        <h3>Live Review Output</h3>
+        <span id="live-review-status" class="running-indicator"><span class="running-dot"></span> Running...</span>
+      </div>
+      <div class="live-log-content" id="live-review-content"></div>
+      <div class="live-log-footer" id="live-review-footer">0 lines</div>
     </div>
 
     <div class="section">
