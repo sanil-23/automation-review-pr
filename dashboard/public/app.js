@@ -581,53 +581,67 @@ function renderPrDetail(pr, container) {
     </div>
   `).join('');
 
+  const isDraft = pr.gh_is_draft || pr.is_draft;
+  const totalFindings = (pr.cycles || []).reduce((sum, c) => sum + (c.findings_critical || 0) + (c.findings_major || 0) + (c.findings_minor || 0), 0);
+
   container.innerHTML = `
     <a href="/" class="back-link">< Back to Dashboard</a>
 
     <div class="pr-header">
-      <h2>#${pr.id} ${esc(pr.title) || 'Untitled'} ${pr.gh_is_draft ? '<span class="badge badge-purple">draft</span>' : ''}</h2>
+      <h2>#${pr.id} ${esc(pr.title) || 'Untitled'} ${isDraft ? '<span class="badge badge-purple">draft</span>' : ''}</h2>
       <div class="pr-meta">
         <div><strong>Author:</strong> ${esc(pr.author) || '-'} ${insiderBadge(pr.is_insider)}</div>
         <div><strong>Branch:</strong> ${esc(pr.branch)} -> ${esc(pr.base_branch)}</div>
         <div><strong>Created:</strong> ${pr.created_at ? new Date(pr.created_at).toLocaleString() : '-'}</div>
         <div><strong>Updated:</strong> ${pr.updated_at_gh ? timeAgo(pr.updated_at_gh) : '-'}</div>
-        <div><strong>Review Status:</strong> ${statusBadge(pr.status)}</div>
         ${pr.url ? `<div><a href="${pr.url}" target="_blank">View on GitHub</a></div>` : ''}
       </div>
 
-      <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">
+      <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
         <div class="stat-card" style="padding:12px">
-          <div style="font-size:12px;color:var(--text-muted)">Diff</div>
-          <div style="font-size:16px">${diffStat(pr.additions, pr.deletions, pr.changed_files)}</div>
+          <div style="font-size:12px;color:var(--text-muted)">Status</div>
+          <div style="font-size:14px;margin-top:4px">${statusBadge(pr.status)}</div>
+        </div>
+        <div class="stat-card" style="padding:12px">
+          <div style="font-size:12px;color:var(--text-muted)">Checks</div>
+          <div style="font-size:16px;margin-top:4px">${ciBadge(pr)}</div>
         </div>
         <div class="stat-card" style="padding:12px">
           <div style="font-size:12px;color:var(--text-muted)">Mergeable</div>
-          <div style="font-size:14px">${mergeableBadge(pr.mergeable)}</div>
+          <div style="font-size:14px;margin-top:4px">${mergeableBadge(pr.mergeable)}</div>
         </div>
         <div class="stat-card" style="padding:12px">
-          <div style="font-size:12px;color:var(--text-muted)">GH Review Decision</div>
-          <div style="font-size:14px">${reviewDecisionBadge(pr.review_decision)}</div>
+          <div style="font-size:12px;color:var(--text-muted)">Diff</div>
+          <div style="font-size:14px;margin-top:4px">${diffStat(pr.additions, pr.deletions, pr.changed_files)}</div>
+        </div>
+        <div class="stat-card" style="padding:12px">
+          <div style="font-size:12px;color:var(--text-muted)">Review Decision</div>
+          <div style="font-size:14px;margin-top:4px">${reviewDecisionBadge(pr.review_decision)}</div>
         </div>
         <div class="stat-card" style="padding:12px">
           <div style="font-size:12px;color:var(--text-muted)">Merge State</div>
-          <div style="font-size:14px"><span class="badge badge-gray">${pr.merge_state_status || '-'}</span></div>
+          <div style="font-size:14px;margin-top:4px"><span class="badge badge-gray">${pr.merge_state_status || '-'}</span></div>
+        </div>
+        <div class="stat-card" style="padding:12px">
+          <div style="font-size:12px;color:var(--text-muted)">Review Cycles</div>
+          <div style="font-size:20px;font-weight:700;margin-top:4px">${(pr.cycles || []).length}</div>
+        </div>
+        <div class="stat-card" style="padding:12px">
+          <div style="font-size:12px;color:var(--text-muted)">Findings</div>
+          <div style="font-size:14px;margin-top:4px">${totalFindings > 0 ? `<span style="color:var(--red)">${totalFindings}</span>` : '<span style="color:var(--green)">0</span>'}</div>
         </div>
         ${pr.labels ? `<div class="stat-card" style="padding:12px">
           <div style="font-size:12px;color:var(--text-muted)">Labels</div>
-          <div style="font-size:14px;margin-top:4px">${labelBadges(pr.labels)}</div>
+          <div style="font-size:13px;margin-top:4px">${labelBadges(pr.labels)}</div>
         </div>` : ''}
         ${pr.reviewers ? `<div class="stat-card" style="padding:12px">
           <div style="font-size:12px;color:var(--text-muted)">Reviewers</div>
-          <div style="font-size:14px">${esc(pr.reviewers)}</div>
+          <div style="font-size:13px;margin-top:4px">${esc(pr.reviewers)}</div>
         </div>` : ''}
         ${pr.assignees ? `<div class="stat-card" style="padding:12px">
           <div style="font-size:12px;color:var(--text-muted)">Assignees</div>
-          <div style="font-size:14px">${esc(pr.assignees)}</div>
+          <div style="font-size:13px;margin-top:4px">${esc(pr.assignees)}</div>
         </div>` : ''}
-        <div class="stat-card" style="padding:12px">
-          <div style="font-size:12px;color:var(--text-muted)">CI Checks</div>
-          <div style="font-size:16px">${ciBadge(pr)}</div>
-        </div>
       </div>
 
       ${pr.is_running ? `<div style="margin-top:12px"><span class="running-indicator"><span class="running-dot"></span>Running Phase ${pr.running_phase || '?'}...</span></div>` : ''}
@@ -640,18 +654,18 @@ function renderPrDetail(pr, container) {
 
     <div class="section">
       <div class="section-header">
-        <h3>Review Timeline</h3>
-        <span class="badge badge-gray">${(pr.cycles || []).length} cycle(s)</span>
+        <h3>Checks</h3>
+        ${pr.ci_total ? `<span class="badge badge-gray">${pr.ci_pass}/${pr.ci_total} passing</span>` : ''}
       </div>
-      ${(pr.cycles || []).length > 0 ? `<div class="timeline">${cyclesHtml}</div>` : '<div class="empty-state">No reviews yet</div>'}
+      <div id="ci-checks-section">${pr.ci_total ? 'Loading...' : '<p style="color:var(--text-muted)">No checks data</p>'}</div>
     </div>
 
     <div class="section">
       <div class="section-header">
-        <h3>CI Checks</h3>
-        ${pr.ci_total ? `<span class="badge badge-gray">${pr.ci_total} check(s)</span>` : ''}
+        <h3>Review Timeline</h3>
+        <span class="badge badge-gray">${(pr.cycles || []).length} cycle(s)</span>
       </div>
-      <div id="ci-checks-section">${pr.ci_total ? 'Loading...' : '<p style="color:var(--text-muted)">No CI checks data</p>'}</div>
+      ${(pr.cycles || []).length > 0 ? `<div class="timeline">${cyclesHtml}</div>` : '<div class="empty-state">No reviews yet</div>'}
     </div>
 
     <div class="section">
