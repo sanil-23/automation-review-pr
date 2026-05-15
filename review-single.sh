@@ -20,6 +20,14 @@ export PATH="/Users/cyrus/.nvm/versions/node/v22.22.1/bin:/usr/local/bin:/usr/bi
 echo "=== Reviewing PR #${PR} ==="
 echo ""
 
+# Git: pull latest (skip if called from cron)
+if [ -z "${CRON_MODE:-}" ]; then
+    echo "[Git] Pulling latest changes..."
+    cd "${SCRIPT_DIR}"
+    git pull --rebase origin main
+    echo ""
+fi
+
 echo "[Phase A] Gathering intelligence..."
 claude -p "$(sed "s/__PR_NUMBER__/${PR}/g" "${INTEL_PROMPT}")" \
     --allowedTools "Bash,Read,Write" \

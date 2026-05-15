@@ -53,6 +53,11 @@ while IFS= read -r pr; do
 done < <(echo "${PR_NUMBERS}" | tr -d '[]' | tr ',' '\n' | tr -d ' ' | grep -v '^$')
 log "Found ${#PRS[@]} eligible PR(s): ${PRS[*]}"
 
+# ─── Git: pull latest before reviews ───
+log "Git: Pulling latest changes..."
+cd "${SCRIPT_DIR}"
+git pull --rebase origin main
+
 # ─── Phase 2: Review PRs in parallel via review-single.sh ───
 log "Phase 2: Launching reviews in parallel..."
 
