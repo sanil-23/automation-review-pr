@@ -32,7 +32,7 @@ router.post('/review/:id', (req, res) => {
 
   const child = spawn('bash', [REVIEW_SCRIPT, String(prId)], {
     cwd: BASE_DIR,
-    env: { ...process.env, PATH: process.env.PATH },
+    env: { ...process.env, PATH: process.env.PATH, DASHBOARD_MODE: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 

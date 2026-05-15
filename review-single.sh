@@ -34,11 +34,13 @@ echo "=== Reviewing PR #${PR} ==="
 echo "REVIEW_STARTED=${REVIEW_START}"
 echo ""
 
-# Git: pull latest (skip if called from cron)
-if [ -z "${CRON_MODE:-}" ]; then
+# Git: pull latest (skip if called from cron or dashboard trigger)
+if [ -z "${CRON_MODE:-}" ] && [ -z "${DASHBOARD_MODE:-}" ]; then
     echo "[Git] Pulling latest changes..."
     cd "${SCRIPT_DIR}"
-    git pull --rebase origin main
+    git stash --quiet 2>/dev/null || true
+    git pull --rebase origin main || echo "[Git] Pull failed, continuing anyway"
+    git stash pop --quiet 2>/dev/null || true
     echo ""
 fi
 
@@ -66,10 +68,12 @@ if [ -z "${CRON_MODE:-}" ]; then
     echo ""
     echo "[Git] Committing and pushing review outputs..."
     cd "${SCRIPT_DIR}"
-    git add -A
+    git add tinyhumansai-openhuman/ to-be-approved/ 2>/dev/null || true
     git commit -m "Review PR #${PR}" || echo "Nothing to commit"
-    git pull --rebase origin main
-    git push origin main
+    git stash --quiet 2>/dev/null || true
+    git pull --rebase origin main || echo "[Git] Pull failed, continuing anyway"
+    git stash pop --quiet 2>/dev/null || true
+    git push origin main || echo "[Git] Push failed"
 fi
 
 echo ""
