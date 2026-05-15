@@ -85,6 +85,20 @@ function fetchAllOpenPrs() {
     }
   }
 
+  // Fetch CI checks for non-draft PRs
+  console.log(`[github-sync] Fetching CI checks for ${nonDraftPrs.length} non-draft PRs...`);
+  for (const pr of nonDraftPrs) {
+    try {
+      const out = execSync(
+        `gh pr checks ${pr.number} --repo ${REPO} --json name,bucket,link,startedAt,completedAt,workflow`,
+        { encoding: 'utf-8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }
+      );
+      pr._ciChecks = JSON.parse(out);
+    } catch {
+      // No checks or error — skip
+    }
+  }
+
   console.log(`[github-sync] Fetched ${prs.length} open PRs`);
 
   const existingPrs = new Map();
@@ -127,6 +141,13 @@ function fetchAllOpenPrs() {
       location: existing?.location || null,
     });
 
+    // Compute CI summary
+    const checks = pr._ciChecks || [];
+    const ciTotal = checks.length;
+    const ciPass = checks.filter(c => c.bucket === 'pass').length;
+    const ciFail = checks.filter(c => c.bucket === 'fail').length;
+    const ciPending = checks.filter(c => c.bucket === 'pending' || c.bucket === 'queued').length;
+
     // Store extended GitHub metadata
     db.upsertPrGithub({
       pr_id: pr.number,
@@ -142,6 +163,11 @@ function fetchAllOpenPrs() {
       assignees,
       updated_at_gh: pr.updatedAt,
       last_synced: new Date().toISOString(),
+      ci_checks: ciTotal > 0 ? JSON.stringify(checks) : null,
+      ci_total: ciTotal,
+      ci_pass: ciPass,
+      ci_fail: ciFail,
+      ci_pending: ciPending,
     });
   }
 

@@ -88,6 +88,18 @@ function getDb() {
     CREATE INDEX IF NOT EXISTS idx_pr_github_open ON pr_github(is_open);
   `);
 
+  // Migrate: add CI columns if they don't exist
+  const cols = _db.prepare("PRAGMA table_info(pr_github)").all().map(c => c.name);
+  if (!cols.includes('ci_checks')) {
+    _db.exec(`
+      ALTER TABLE pr_github ADD COLUMN ci_checks TEXT;
+      ALTER TABLE pr_github ADD COLUMN ci_total INTEGER DEFAULT 0;
+      ALTER TABLE pr_github ADD COLUMN ci_pass INTEGER DEFAULT 0;
+      ALTER TABLE pr_github ADD COLUMN ci_fail INTEGER DEFAULT 0;
+      ALTER TABLE pr_github ADD COLUMN ci_pending INTEGER DEFAULT 0;
+    `);
+  }
+
   return _db;
 }
 
@@ -201,6 +213,11 @@ function getPrsWithLatestCycle() {
       g.assignees,
       g.updated_at_gh,
       g.is_open,
+      g.ci_checks,
+      g.ci_total,
+      g.ci_pass,
+      g.ci_fail,
+      g.ci_pending,
       rc.cycle_number as latest_cycle,
       rc.status as cycle_status,
       rc.started_at as cycle_started,
@@ -233,7 +250,12 @@ function getPrByIdFull(id) {
       g.reviewers,
       g.assignees,
       g.updated_at_gh,
-      g.is_open
+      g.is_open,
+      g.ci_checks,
+      g.ci_total,
+      g.ci_pass,
+      g.ci_fail,
+      g.ci_pending
     FROM prs p
     LEFT JOIN pr_github g ON g.pr_id = p.id
     WHERE p.id = ?
@@ -243,13 +265,14 @@ function getPrByIdFull(id) {
 function upsertPrGithub(data) {
   const db = getDb();
   return db.prepare(`
-    INSERT INTO pr_github (pr_id, is_draft, review_decision, mergeable, merge_state_status, additions, deletions, changed_files, labels, reviewers, assignees, updated_at_gh, last_synced, is_open)
-    VALUES (@pr_id, @is_draft, @review_decision, @mergeable, @merge_state_status, @additions, @deletions, @changed_files, @labels, @reviewers, @assignees, @updated_at_gh, @last_synced, 1)
+    INSERT INTO pr_github (pr_id, is_draft, review_decision, mergeable, merge_state_status, additions, deletions, changed_files, labels, reviewers, assignees, updated_at_gh, last_synced, is_open, ci_checks, ci_total, ci_pass, ci_fail, ci_pending)
+    VALUES (@pr_id, @is_draft, @review_decision, @mergeable, @merge_state_status, @additions, @deletions, @changed_files, @labels, @reviewers, @assignees, @updated_at_gh, @last_synced, 1, @ci_checks, @ci_total, @ci_pass, @ci_fail, @ci_pending)
     ON CONFLICT(pr_id) DO UPDATE SET
       is_draft=@is_draft, review_decision=@review_decision, mergeable=@mergeable,
       merge_state_status=@merge_state_status, additions=@additions, deletions=@deletions,
       changed_files=@changed_files, labels=@labels, reviewers=@reviewers, assignees=@assignees,
-      updated_at_gh=@updated_at_gh, last_synced=@last_synced, is_open=1
+      updated_at_gh=@updated_at_gh, last_synced=@last_synced, is_open=1,
+      ci_checks=@ci_checks, ci_total=@ci_total, ci_pass=@ci_pass, ci_fail=@ci_fail, ci_pending=@ci_pending
   `).run(data);
 }
 
@@ -386,6 +409,17 @@ function queryPrs(filters = {}) {
     params.push(filters.created_before);
   }
 
+  // --- CI Status ---
+  if (filters.ci_status) {
+    if (filters.ci_status === 'pass') {
+      conditions.push('g.ci_total > 0 AND g.ci_fail = 0 AND g.ci_pending = 0');
+    } else if (filters.ci_status === 'fail') {
+      conditions.push('g.ci_fail > 0');
+    } else if (filters.ci_status === 'pending') {
+      conditions.push('g.ci_pending > 0');
+    }
+  }
+
   // --- Free text search ---
   if (filters.search) {
     conditions.push("(CAST(p.id AS TEXT) LIKE '%' || ? || '%' OR LOWER(p.title) LIKE '%' || LOWER(?) || '%' OR LOWER(p.author) LIKE '%' || LOWER(?) || '%' OR LOWER(g.labels) LIKE '%' || LOWER(?) || '%')");
@@ -428,6 +462,11 @@ function queryPrs(filters = {}) {
       g.assignees,
       g.updated_at_gh,
       g.is_open,
+      g.ci_checks,
+      g.ci_total,
+      g.ci_pass,
+      g.ci_fail,
+      g.ci_pending,
       rc.cycle_number as latest_cycle,
       rc.status as cycle_status,
       rc.started_at as cycle_started,

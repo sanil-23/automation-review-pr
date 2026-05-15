@@ -44,6 +44,7 @@ router.get('/prs', (req, res) => {
     max_deletions: req.query.max_deletions || undefined,
     created_after: req.query.created_after || undefined,
     created_before: req.query.created_before || undefined,
+    ci_status: req.query.ci_status || undefined,
     sort: req.query.sort || undefined,
     order: req.query.order || undefined,
   };
@@ -80,6 +81,26 @@ router.get('/prs/:id', (req, res) => {
     cycles,
     is_running: liveStatus && liveStatus.running && liveStatus.pr === id,
     running_phase: liveStatus && liveStatus.running && liveStatus.pr === id ? liveStatus.phase : null,
+  });
+});
+
+// GET /api/prs/:id/checks — parsed CI checks
+router.get('/prs/:id/checks', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const pr = db.getPrByIdFull(id);
+  if (!pr) return res.status(404).json({ error: 'PR not found' });
+
+  let checks = [];
+  if (pr.ci_checks) {
+    try { checks = JSON.parse(pr.ci_checks); } catch {}
+  }
+
+  res.json({
+    total: pr.ci_total || 0,
+    pass: pr.ci_pass || 0,
+    fail: pr.ci_fail || 0,
+    pending: pr.ci_pending || 0,
+    checks,
   });
 });
 

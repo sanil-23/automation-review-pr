@@ -91,6 +91,18 @@ function labelBadges(labels) {
   ).join(' ');
 }
 
+function ciBadge(pr) {
+  if (!pr.ci_total) return '<span style="color:var(--text-muted)">-</span>';
+  const pass = pr.ci_pass || 0;
+  const fail = pr.ci_fail || 0;
+  const pending = pr.ci_pending || 0;
+  const total = pr.ci_total || 0;
+
+  if (fail > 0) return `<span class="badge badge-red">${pass}/${total}</span>`;
+  if (pending > 0) return `<span class="badge badge-yellow">${pass}/${total}</span>`;
+  return `<span class="badge badge-green">${pass}/${total}</span>`;
+}
+
 function esc(str) {
   if (!str) return '';
   const div = document.createElement('div');
@@ -104,8 +116,8 @@ function esc(str) {
 
 const FILTER_KEYS = [
   'search', 'status', 'author', 'insider', 'draft', 'mergeable',
-  'review_decision', 'has_review', 'has_findings', 'merge_state',
-  'label', 'sort', 'order',
+  'review_decision', 'has_review', 'has_findings', 'ci_status',
+  'merge_state', 'label', 'sort', 'order',
 ];
 
 const FILTER_LABELS = {
@@ -118,6 +130,7 @@ const FILTER_LABELS = {
   review_decision: 'GH Decision',
   has_review: v => v === '1' ? 'Reviewed' : 'Not reviewed',
   has_findings: v => v === '1' ? 'Has findings' : 'No findings',
+  ci_status: v => `CI: ${v}`,
   merge_state: 'Merge state',
   label: 'Label',
   sort: 'Sort',
@@ -336,7 +349,7 @@ function renderTable(prs) {
   if (!tableBody) return;
 
   if (prs.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="13" class="empty-state">No PRs match your filters</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="14" class="empty-state">No PRs match your filters</td></tr>`;
     if (footer) footer.textContent = '';
     return;
   }
@@ -361,6 +374,7 @@ function renderTable(prs) {
           ${!pr.findings_critical && !pr.findings_major && !pr.findings_minor ? '-' : ''}
         </div>
       </td>
+      <td>${ciBadge(pr)}</td>
       <td>${mergeableBadge(pr.mergeable)}</td>
       <td>
         <div style="display:flex;gap:4px">
@@ -609,6 +623,10 @@ function renderPrDetail(pr, container) {
           <div style="font-size:12px;color:var(--text-muted)">Assignees</div>
           <div style="font-size:14px">${esc(pr.assignees)}</div>
         </div>` : ''}
+        <div class="stat-card" style="padding:12px">
+          <div style="font-size:12px;color:var(--text-muted)">CI Checks</div>
+          <div style="font-size:16px">${ciBadge(pr)}</div>
+        </div>
       </div>
 
       ${pr.is_running ? `<div style="margin-top:12px"><span class="running-indicator"><span class="running-dot"></span>Running Phase ${pr.running_phase || '?'}...</span></div>` : ''}
@@ -625,6 +643,14 @@ function renderPrDetail(pr, container) {
         <span class="badge badge-gray">${(pr.cycles || []).length} cycle(s)</span>
       </div>
       ${(pr.cycles || []).length > 0 ? `<div class="timeline">${cyclesHtml}</div>` : '<div class="empty-state">No reviews yet</div>'}
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <h3>CI Checks</h3>
+        ${pr.ci_total ? `<span class="badge badge-gray">${pr.ci_total} check(s)</span>` : ''}
+      </div>
+      <div id="ci-checks-section">${pr.ci_total ? 'Loading...' : '<p style="color:var(--text-muted)">No CI checks data</p>'}</div>
     </div>
 
     <div class="section">
@@ -647,8 +673,70 @@ function renderPrDetail(pr, container) {
     </div>
   `;
 
+  loadCiChecks(pr.id);
   loadTrackingFile(pr.id);
   loadLogs(pr.id);
+}
+
+async function loadCiChecks(prId) {
+  const section = document.getElementById('ci-checks-section');
+  if (!section) return;
+
+  try {
+    const res = await fetch(`${API}/api/prs/${prId}/checks`);
+    if (!res.ok) { section.innerHTML = '<p style="color:var(--text-muted)">No CI data</p>'; return; }
+
+    const data = await res.json();
+    if (!data.checks || data.checks.length === 0) {
+      section.innerHTML = '<p style="color:var(--text-muted)">No CI checks found</p>';
+      return;
+    }
+
+    // Sort: failures first, then pending, then pass
+    const order = { fail: 0, pending: 1, queued: 1, skipping: 2, cancel: 2, pass: 3 };
+    data.checks.sort((a, b) => (order[a.bucket] ?? 9) - (order[b.bucket] ?? 9));
+
+    const bucketBadge = (b) => {
+      const map = { pass: 'badge-green', fail: 'badge-red', pending: 'badge-yellow', queued: 'badge-yellow', skipping: 'badge-gray', cancel: 'badge-gray' };
+      return `<span class="badge ${map[b] || 'badge-gray'}">${b}</span>`;
+    };
+
+    const duration = (start, end) => {
+      if (!start || !end) return '-';
+      const s = Math.round((new Date(end) - new Date(start)) / 1000);
+      if (s < 60) return `${s}s`;
+      return `${Math.floor(s / 60)}m ${s % 60}s`;
+    };
+
+    section.innerHTML = `
+      <div class="pr-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Check</th>
+              <th>Status</th>
+              <th>Workflow</th>
+              <th>Duration</th>
+              <th>Link</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.checks.map(c => `
+              <tr>
+                <td>${esc(c.name)}</td>
+                <td>${bucketBadge(c.bucket)}</td>
+                <td style="color:var(--text-muted)">${esc(c.workflow || '-')}</td>
+                <td>${duration(c.startedAt, c.completedAt)}</td>
+                <td>${c.link ? `<a href="${c.link}" target="_blank" class="btn btn-sm">Details</a>` : '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (err) {
+    section.innerHTML = `<p style="color:var(--text-muted)">Error: ${err.message}</p>`;
+  }
 }
 
 async function loadTrackingFile(prId) {
