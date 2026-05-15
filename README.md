@@ -22,7 +22,7 @@ Local web UI at `http://localhost:3847` built with Express + SQLite.
 ### Features
 
 - All open PRs from GitHub with full metadata (diff stats, merge status, labels, reviewers, assignees)
-- Insider/outsider detection via org membership
+- Member/collaborator detection via org membership
 - Review timeline per PR with cycle details, findings, and links to GitHub reviews
 - Rendered tracking files and raw logs
 - Manual review triggers (single PR or full discovery)
@@ -39,7 +39,7 @@ Everything is filterable and combinable:
 | Search | Free text (PR #, title, author, label) |
 | Status | pending, clean, changes-requested, blocked, under-review |
 | Author | All contributors (auto-populated) |
-| Insider/Outsider | Org member or external contributor |
+| Member/Collaborator | Org member or external collaborator |
 | Draft/Ready | Draft PRs or ready for review |
 | Mergeable | Mergeable, conflicts, unknown |
 | GH Review Decision | Approved, changes requested, none |

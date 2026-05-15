@@ -48,7 +48,7 @@ function fetchOrgMembers() {
   return _orgMembers;
 }
 
-function isInsider(login) {
+function isMember(login) {
   if (!login) return null;
   const members = fetchOrgMembers();
   return members.has(login.toLowerCase()) ? 1 : 0;
@@ -158,7 +158,7 @@ function fetchAllOpenPrs() {
 
   for (const pr of prs) {
     const authorLogin = pr.author?.login || '';
-    const insider = isInsider(authorLogin);
+    const member = isMember(authorLogin);
     const existing = existingPrs.get(pr.number);
 
     // Determine status: preserve review status if we have one, otherwise derive from GH data
@@ -184,7 +184,7 @@ function fetchAllOpenPrs() {
       url: pr.url,
       created_at: pr.createdAt,
       status,
-      is_insider: insider,
+      is_member: member,
       last_reviewed_commit: existing?.last_reviewed_commit || null,
       last_review_date: existing?.last_review_date || null,
       tracking_file_path: existing?.tracking_file_path || null,
@@ -274,7 +274,7 @@ function stopPeriodicSync() {
 module.exports = {
   fetchAllOpenPrs,
   fetchOrgMembers,
-  isInsider,
+  isMember,
   handlePrMerged,
   handlePrClosed,
   startPeriodicSync,

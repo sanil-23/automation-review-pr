@@ -23,7 +23,7 @@ function getDb() {
       created_at TEXT,
       status TEXT,
       is_draft INTEGER DEFAULT 0,
-      is_insider INTEGER,
+      is_member INTEGER,
       last_reviewed_commit TEXT,
       last_review_date TEXT,
       tracking_file_path TEXT,
@@ -88,6 +88,12 @@ function getDb() {
     CREATE INDEX IF NOT EXISTS idx_pr_github_open ON pr_github(is_open);
   `);
 
+  // Migrate: rename is_insider → is_member
+  const prCols = _db.prepare("PRAGMA table_info(prs)").all().map(c => c.name);
+  if (prCols.includes('is_insider')) {
+    _db.exec(`ALTER TABLE prs RENAME COLUMN is_insider TO is_member`);
+  }
+
   // Migrate: add CI columns if they don't exist
   const cols = _db.prepare("PRAGMA table_info(pr_github)").all().map(c => c.name);
   if (!cols.includes('ci_checks')) {
@@ -106,11 +112,11 @@ function getDb() {
 // --- PR queries ---
 
 const prQueries = {
-  upsert: `INSERT INTO prs (id, title, author, branch, base_branch, url, created_at, status, is_insider, last_reviewed_commit, last_review_date, tracking_file_path, location, updated_at)
-    VALUES (@id, @title, @author, @branch, @base_branch, @url, @created_at, @status, @is_insider, @last_reviewed_commit, @last_review_date, @tracking_file_path, @location, datetime('now'))
+  upsert: `INSERT INTO prs (id, title, author, branch, base_branch, url, created_at, status, is_member, last_reviewed_commit, last_review_date, tracking_file_path, location, updated_at)
+    VALUES (@id, @title, @author, @branch, @base_branch, @url, @created_at, @status, @is_member, @last_reviewed_commit, @last_review_date, @tracking_file_path, @location, datetime('now'))
     ON CONFLICT(id) DO UPDATE SET
       title=@title, author=@author, branch=@branch, base_branch=@base_branch, url=@url,
-      status=@status, is_insider=@is_insider, last_reviewed_commit=@last_reviewed_commit,
+      status=@status, is_member=@is_member, last_reviewed_commit=@last_reviewed_commit,
       last_review_date=@last_review_date, tracking_file_path=@tracking_file_path,
       location=@location, updated_at=datetime('now')`,
 
@@ -282,7 +288,7 @@ function upsertPrGithub(data) {
  * All filtering happens in SQLite — no client-side filtering needed.
  *
  * Supported filters (all optional):
- *   status, author, insider (1/0), draft (1/0), mergeable,
+ *   status, author, member (1/0), draft (1/0), mergeable,
  *   review_decision, label, has_review (1/0), has_findings (1/0),
  *   merge_state, is_open (1/0), search (free text), assignee, reviewer,
  *   min_additions, max_additions, min_deletions, max_deletions,
@@ -311,10 +317,10 @@ function queryPrs(filters = {}) {
     params.push(filters.author);
   }
 
-  // --- Insider/Outsider ---
-  if (filters.insider !== undefined && filters.insider !== '') {
-    conditions.push('p.is_insider = ?');
-    params.push(parseInt(filters.insider, 10));
+  // --- Member/Collaborator ---
+  if (filters.member !== undefined && filters.member !== '') {
+    conditions.push('p.is_member = ?');
+    params.push(parseInt(filters.member, 10));
   }
 
   // --- Draft ---

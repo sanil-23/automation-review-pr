@@ -31,7 +31,7 @@ function migrate() {
       url: pr.url,
       created_at: pr.created_at,
       status: pr.status,
-      is_insider: null,
+      is_member: null,
       last_reviewed_commit: pr.last_reviewed_commit,
       last_review_date: pr.last_review_date,
       tracking_file_path: pr.tracking_file_path,

@@ -21,12 +21,12 @@ router.get('/stats', (req, res) => {
   res.json({ ...stats, liveStatus });
 });
 
-// GET /api/prs?status=pending&author=oxoxDev&insider=1&draft=0&mergeable=MERGEABLE&...
+// GET /api/prs?status=pending&author=oxoxDev&member=1&draft=0&mergeable=MERGEABLE&...
 router.get('/prs', (req, res) => {
   const filters = {
     status: req.query.status || undefined,
     author: req.query.author || undefined,
-    insider: req.query.insider,
+    member: req.query.member,
     draft: req.query.draft,
     mergeable: req.query.mergeable || undefined,
     review_decision: req.query.review_decision || undefined,
@@ -211,7 +211,7 @@ router.post('/sync', (req, res) => {
         url: pr.url,
         created_at: pr.created_at,
         status: pr.status,
-        is_insider: null,
+        is_member: null,
         last_reviewed_commit: pr.last_reviewed_commit,
         last_review_date: pr.last_review_date,
         tracking_file_path: pr.tracking_file_path,

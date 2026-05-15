@@ -51,7 +51,7 @@ Each PR gets `PR-<N>.md` with: metadata (author, branch, URL, status, last revie
 - **Two data sources**: (1) .md tracking files parsed into `prs` + `review_cycles` tables, (2) GitHub API into `prs` + `pr_github` table
 - **Single `prs` table** for all PRs — both sources merge via ON CONFLICT upsert
 - **`pr_github`** is a 1:1 extension table with GitHub-only metadata (diff stats, mergeable, labels, etc.)
-- **Insider detection**: org members fetched from `gh api orgs/tinyhumansai/members`, cached 1h
+- **Member detection**: org members fetched from `gh api orgs/tinyhumansai/members`, cached 1h
 - **File watcher**: `fs.watch()` on tracking dirs for near-real-time sync
 - **status.json**: written by review-single.sh to show live Phase A/B progress
 
