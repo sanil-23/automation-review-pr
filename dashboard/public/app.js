@@ -47,7 +47,7 @@ function reviewDecisionBadge(decision) {
   return `<span class="badge ${map[decision] || 'badge-gray'}">${decision.toLowerCase().replace(/_/g, ' ')}</span>`;
 }
 
-function mergeableBadge(mergeable, mergeState) {
+function mergeableBadge(mergeable) {
   if (!mergeable) return '-';
   if (mergeable === 'MERGEABLE') return '<span class="badge badge-green">mergeable</span>';
   if (mergeable === 'CONFLICTING') return '<span class="badge badge-red">conflicts</span>';
@@ -98,99 +98,327 @@ function esc(str) {
   return div.innerHTML;
 }
 
-// --- Dashboard Page ---
+// =============================================================
+// Filter system — all state lives in URL query params
+// =============================================================
+
+const FILTER_KEYS = [
+  'search', 'status', 'author', 'insider', 'draft', 'mergeable',
+  'review_decision', 'has_review', 'has_findings', 'merge_state',
+  'label', 'sort', 'order',
+];
+
+const FILTER_LABELS = {
+  search: 'Search',
+  status: 'Status',
+  author: 'Author',
+  insider: v => v === '1' ? 'Insider' : 'Outsider',
+  draft: v => v === '1' ? 'Drafts' : 'Ready',
+  mergeable: 'Merge',
+  review_decision: 'GH Decision',
+  has_review: v => v === '1' ? 'Reviewed' : 'Not reviewed',
+  has_findings: v => v === '1' ? 'Has findings' : 'No findings',
+  merge_state: 'Merge state',
+  label: 'Label',
+  sort: 'Sort',
+  order: 'Order',
+};
+
+function getFiltersFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const filters = {};
+  for (const key of FILTER_KEYS) {
+    const val = params.get(key);
+    if (val !== null && val !== '') filters[key] = val;
+  }
+  return filters;
+}
+
+function setFiltersToUrl(filters) {
+  const params = new URLSearchParams();
+  for (const [key, val] of Object.entries(filters)) {
+    if (val !== undefined && val !== null && val !== '') {
+      params.set(key, val);
+    }
+  }
+  const qs = params.toString();
+  const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+  window.history.replaceState(null, '', newUrl);
+}
+
+function getFiltersFromForm() {
+  const filters = {};
+  for (const key of FILTER_KEYS) {
+    const el = document.getElementById(`f-${key}`);
+    if (el && el.value) filters[key] = el.value;
+  }
+  return filters;
+}
+
+function setFormFromFilters(filters) {
+  for (const key of FILTER_KEYS) {
+    const el = document.getElementById(`f-${key}`);
+    if (el) el.value = filters[key] || '';
+  }
+  // Highlight active filters
+  for (const key of FILTER_KEYS) {
+    const el = document.getElementById(`f-${key}`);
+    if (el) {
+      el.classList.toggle('active', !!filters[key] && key !== 'sort' && key !== 'order');
+    }
+  }
+}
+
+function buildQueryString(filters) {
+  const params = new URLSearchParams();
+  for (const [key, val] of Object.entries(filters)) {
+    if (val !== undefined && val !== null && val !== '') {
+      params.set(key, val);
+    }
+  }
+  return params.toString();
+}
+
+function renderFilterSummary(filters) {
+  const el = document.getElementById('filter-summary');
+  if (!el) return;
+
+  const activeTags = Object.entries(filters)
+    .filter(([k, v]) => v && k !== 'sort' && k !== 'order')
+    .map(([key, val]) => {
+      const labelFn = FILTER_LABELS[key];
+      const display = typeof labelFn === 'function' ? labelFn(val) : `${labelFn}: ${val}`;
+      return `<span class="filter-tag">${display}<button onclick="removeFilter('${key}')">&times;</button></span>`;
+    });
+
+  if (activeTags.length === 0) {
+    el.style.display = 'none';
+  } else {
+    el.style.display = 'flex';
+    el.innerHTML = `<span>Filters:</span> ${activeTags.join('')}`;
+  }
+}
+
+function removeFilter(key) {
+  const filters = getFiltersFromUrl();
+  delete filters[key];
+  setFiltersToUrl(filters);
+  setFormFromFilters(filters);
+  renderFilterSummary(filters);
+  fetchAndRender();
+}
+
+function clearFilters() {
+  setFiltersToUrl({});
+  setFormFromFilters({});
+  renderFilterSummary({});
+  fetchAndRender();
+}
+
+// =============================================================
+// Dashboard page
+// =============================================================
+
+let _filterOptions = null;
+
+async function loadFilterOptions() {
+  try {
+    const res = await fetch(`${API}/api/filters`);
+    _filterOptions = await res.json();
+    populateFilterDropdowns(_filterOptions);
+  } catch (err) {
+    console.error('Failed to load filter options:', err);
+  }
+}
+
+function populateFilterDropdowns(opts) {
+  // Authors
+  const authorEl = document.getElementById('f-author');
+  if (authorEl && opts.authors) {
+    const current = authorEl.value;
+    authorEl.innerHTML = '<option value="">All authors</option>' +
+      opts.authors.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
+    authorEl.value = current;
+  }
+
+  // Statuses
+  const statusEl = document.getElementById('f-status');
+  if (statusEl && opts.statuses) {
+    const current = statusEl.value;
+    statusEl.innerHTML = '<option value="">All statuses</option>' +
+      opts.statuses.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    statusEl.value = current;
+  }
+
+  // Labels
+  const labelEl = document.getElementById('f-label');
+  if (labelEl && opts.labels) {
+    const current = labelEl.value;
+    labelEl.innerHTML = '<option value="">All labels</option>' +
+      opts.labels.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join('');
+    labelEl.value = current;
+  }
+
+  // Merge states
+  const mergeStateEl = document.getElementById('f-merge_state');
+  if (mergeStateEl && opts.mergeStates) {
+    const current = mergeStateEl.value;
+    mergeStateEl.innerHTML = '<option value="">Merge state</option>' +
+      opts.mergeStates.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+    mergeStateEl.value = current;
+  }
+}
+
+async function fetchAndRender() {
+  const filters = getFiltersFromUrl();
+  const qs = buildQueryString(filters);
+
+  try {
+    const [statsRes, prsRes] = await Promise.all([
+      fetch(`${API}/api/stats`),
+      fetch(`${API}/api/prs${qs ? '?' + qs : ''}`),
+    ]);
+    const stats = await statsRes.json();
+    const prs = await prsRes.json();
+
+    renderStats(stats);
+    renderTable(prs);
+    renderFilterSummary(filters);
+  } catch (err) {
+    console.error('Fetch error:', err);
+  }
+}
+
+function renderStats(s) {
+  const el = document.getElementById('stats-bar');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="stat-card"><div class="stat-value">${s.total || 0}</div><div class="stat-label">Total PRs</div></div>
+    <div class="stat-card purple"><div class="stat-value">${s.pending || 0}</div><div class="stat-label">Pending</div></div>
+    <div class="stat-card purple"><div class="stat-value">${s.drafts || 0}</div><div class="stat-label">Drafts</div></div>
+    <div class="stat-card blue"><div class="stat-value">${s.under_review || 0}</div><div class="stat-label">Reviewing</div></div>
+    <div class="stat-card yellow"><div class="stat-value">${s.changes_requested || 0}</div><div class="stat-label">Changes Req'd</div></div>
+    <div class="stat-card green"><div class="stat-value">${s.clean || 0}</div><div class="stat-label">Clean</div></div>
+    <div class="stat-card red"><div class="stat-value">${s.blocked || 0}</div><div class="stat-label">Blocked</div></div>
+  `;
+
+  // Make stat cards clickable as quick filters
+  el.querySelectorAll('.stat-card').forEach(card => {
+    const label = card.querySelector('.stat-label')?.textContent?.toLowerCase();
+    const statusMap = {
+      'pending': 'pending',
+      'drafts': '__draft',
+      'reviewing': 'under-review',
+      "changes req'd": 'changes-requested',
+      'clean': 'clean',
+      'blocked': 'blocked',
+    };
+    const filterVal = statusMap[label];
+    if (filterVal && label !== 'total prs') {
+      card.style.cursor = 'pointer';
+      card.onclick = () => {
+        if (filterVal === '__draft') {
+          setFiltersToUrl({ draft: '1' });
+          setFormFromFilters({ draft: '1' });
+        } else {
+          setFiltersToUrl({ status: filterVal });
+          setFormFromFilters({ status: filterVal });
+        }
+        fetchAndRender();
+      };
+    }
+  });
+}
+
+function renderTable(prs) {
+  const tableBody = document.getElementById('pr-table-body');
+  const footer = document.getElementById('table-footer');
+  if (!tableBody) return;
+
+  if (prs.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="13" class="empty-state">No PRs match your filters</td></tr>`;
+    if (footer) footer.textContent = '';
+    return;
+  }
+
+  tableBody.innerHTML = prs.map(pr => `
+    <tr${pr.gh_is_draft ? ' style="opacity:0.6"' : ''}>
+      <td class="pr-number"><a href="/pr.html?pr=${pr.id}">#${pr.id}</a></td>
+      <td class="pr-title" title="${esc(pr.title)}">${esc(pr.title) || '-'}${pr.gh_is_draft ? ' <span class="badge badge-purple" style="font-size:10px">draft</span>' : ''}</td>
+      <td><a href="javascript:void(0)" onclick="applyFilter('author','${esc(pr.author)}')">${esc(pr.author) || '-'}</a></td>
+      <td>${insiderBadge(pr.is_insider)}</td>
+      <td>${statusBadge(pr.status)}</td>
+      <td>${waitingFor(pr)}</td>
+      <td>${diffStat(pr.additions, pr.deletions, pr.changed_files)}</td>
+      <td style="text-align:center">${pr.latest_cycle || 0}</td>
+      <td>${timeAgo(pr.last_review_date || pr.updated_at_gh)}</td>
+      <td>${formatDuration(pr.cycle_duration)}</td>
+      <td>
+        <div class="findings">
+          ${pr.findings_critical ? `<span class="f-crit">${pr.findings_critical}C</span>` : ''}
+          ${pr.findings_major ? `<span class="f-major">${pr.findings_major}M</span>` : ''}
+          ${pr.findings_minor ? `<span class="f-minor">${pr.findings_minor}m</span>` : ''}
+          ${!pr.findings_critical && !pr.findings_major && !pr.findings_minor ? '-' : ''}
+        </div>
+      </td>
+      <td>${mergeableBadge(pr.mergeable)}</td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-sm btn-primary" onclick="triggerReview(${pr.id})" ${pr.is_running ? 'disabled' : ''}>
+            ${pr.latest_cycle ? 'Re-review' : 'Review'}
+          </button>
+          <a href="/pr.html?pr=${pr.id}" class="btn btn-sm">Details</a>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  if (footer) footer.textContent = `Showing ${prs.length} PR(s)`;
+}
+
+// Quick filter from clicking values in the table
+function applyFilter(key, value) {
+  const filters = getFiltersFromUrl();
+  filters[key] = value;
+  setFiltersToUrl(filters);
+  setFormFromFilters(filters);
+  fetchAndRender();
+}
 
 async function loadDashboard() {
   const statsEl = document.getElementById('stats-bar');
-  const tableBody = document.getElementById('pr-table-body');
-  const filterInput = document.getElementById('filter-search');
-  const filterStatus = document.getElementById('filter-status');
-
   if (!statsEl) return;
 
-  let allPrs = [];
+  // Load filter options (authors, labels, etc.)
+  await loadFilterOptions();
 
-  async function fetchData() {
-    try {
-      const [statsRes, prsRes] = await Promise.all([
-        fetch(`${API}/api/stats`),
-        fetch(`${API}/api/prs`),
-      ]);
-      const stats = await statsRes.json();
-      allPrs = await prsRes.json();
+  // Restore filters from URL
+  const urlFilters = getFiltersFromUrl();
+  setFormFromFilters(urlFilters);
 
-      renderStats(stats);
-      renderTable(allPrs);
-    } catch (err) {
-      console.error('Fetch error:', err);
-    }
-  }
+  // Bind filter change events
+  for (const key of FILTER_KEYS) {
+    const el = document.getElementById(`f-${key}`);
+    if (!el) continue;
 
-  function renderStats(s) {
-    statsEl.innerHTML = `
-      <div class="stat-card"><div class="stat-value">${s.total || 0}</div><div class="stat-label">Total PRs</div></div>
-      <div class="stat-card purple"><div class="stat-value">${s.pending || 0}</div><div class="stat-label">Pending Review</div></div>
-      <div class="stat-card purple"><div class="stat-value">${s.drafts || 0}</div><div class="stat-label">Drafts</div></div>
-      <div class="stat-card blue"><div class="stat-value">${s.under_review || 0}</div><div class="stat-label">Under Review</div></div>
-      <div class="stat-card yellow"><div class="stat-value">${s.changes_requested || 0}</div><div class="stat-label">Changes Req'd</div></div>
-      <div class="stat-card green"><div class="stat-value">${s.clean || 0}</div><div class="stat-label">Clean</div></div>
-      <div class="stat-card red"><div class="stat-value">${s.blocked || 0}</div><div class="stat-label">Blocked</div></div>
-    `;
-  }
+    const eventType = el.tagName === 'INPUT' ? 'input' : 'change';
+    let debounceTimer = null;
 
-  function renderTable(prs) {
-    const search = (filterInput.value || '').toLowerCase();
-    const statusFilter = filterStatus.value;
+    el.addEventListener(eventType, () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      const delay = el.tagName === 'INPUT' ? 300 : 0;
 
-    const filtered = prs.filter(pr => {
-      if (search && !`#${pr.id} ${pr.title} ${pr.author} ${pr.labels || ''}`.toLowerCase().includes(search)) return false;
-      if (statusFilter === 'draft' && !pr.gh_is_draft) return false;
-      else if (statusFilter && statusFilter !== 'draft' && pr.status !== statusFilter) return false;
-      return true;
+      debounceTimer = setTimeout(() => {
+        const filters = getFiltersFromForm();
+        setFiltersToUrl(filters);
+        renderFilterSummary(filters);
+        fetchAndRender();
+      }, delay);
     });
-
-    if (filtered.length === 0) {
-      tableBody.innerHTML = `<tr><td colspan="13" class="empty-state">No PRs match your filters</td></tr>`;
-      return;
-    }
-
-    tableBody.innerHTML = filtered.map(pr => `
-      <tr${pr.gh_is_draft ? ' style="opacity:0.6"' : ''}>
-        <td class="pr-number"><a href="/pr.html?pr=${pr.id}">#${pr.id}</a></td>
-        <td class="pr-title" title="${esc(pr.title)}">${esc(pr.title) || '-'}${pr.gh_is_draft ? ' <span class="badge badge-purple" style="font-size:10px">draft</span>' : ''}</td>
-        <td>${esc(pr.author) || '-'}</td>
-        <td>${insiderBadge(pr.is_insider)}</td>
-        <td>${statusBadge(pr.status)}</td>
-        <td>${waitingFor(pr)}</td>
-        <td>${diffStat(pr.additions, pr.deletions, pr.changed_files)}</td>
-        <td style="text-align:center">${pr.latest_cycle || 0}</td>
-        <td>${timeAgo(pr.last_review_date || pr.updated_at_gh)}</td>
-        <td>${formatDuration(pr.cycle_duration)}</td>
-        <td>
-          <div class="findings">
-            ${pr.findings_critical ? `<span class="f-crit">${pr.findings_critical}C</span>` : ''}
-            ${pr.findings_major ? `<span class="f-major">${pr.findings_major}M</span>` : ''}
-            ${pr.findings_minor ? `<span class="f-minor">${pr.findings_minor}m</span>` : ''}
-            ${!pr.findings_critical && !pr.findings_major && !pr.findings_minor ? '-' : ''}
-          </div>
-        </td>
-        <td>${mergeableBadge(pr.mergeable)}</td>
-        <td>
-          <div style="display:flex;gap:4px">
-            <button class="btn btn-sm btn-primary" onclick="triggerReview(${pr.id})" ${pr.is_running ? 'disabled' : ''}>
-              ${pr.latest_cycle ? 'Re-review' : 'Review'}
-            </button>
-            <a href="/pr.html?pr=${pr.id}" class="btn btn-sm">Details</a>
-          </div>
-        </td>
-      </tr>
-    `).join('');
   }
 
-  filterInput.addEventListener('input', () => renderTable(allPrs));
-  filterStatus.addEventListener('change', () => renderTable(allPrs));
-
-  await fetchData();
+  // Initial render
+  await fetchAndRender();
 
   // Polling
   setInterval(async () => {
@@ -200,12 +428,14 @@ async function loadDashboard() {
 
     if (!window._lastFetch || Date.now() - window._lastFetch > interval) {
       window._lastFetch = Date.now();
-      await fetchData();
+      await fetchAndRender();
     }
   }, 3000);
 }
 
-// --- Trigger Review ---
+// =============================================================
+// Actions
+// =============================================================
 
 async function triggerReview(prId) {
   const btn = event.target;
@@ -260,7 +490,9 @@ async function forceSync() {
   }
 }
 
-// --- PR Detail Page ---
+// =============================================================
+// PR Detail Page
+// =============================================================
 
 async function loadPrDetail() {
   const container = document.getElementById('pr-detail');
@@ -348,7 +580,7 @@ function renderPrDetail(pr, container) {
         </div>
         <div class="stat-card" style="padding:12px">
           <div style="font-size:12px;color:var(--text-muted)">Mergeable</div>
-          <div style="font-size:14px">${mergeableBadge(pr.mergeable, pr.merge_state_status)}</div>
+          <div style="font-size:14px">${mergeableBadge(pr.mergeable)}</div>
         </div>
         <div class="stat-card" style="padding:12px">
           <div style="font-size:12px;color:var(--text-muted)">GH Review Decision</div>
@@ -490,7 +722,9 @@ function switchTab(section, tab, btn) {
   btn.classList.add('active');
 }
 
-// --- Init ---
+// =============================================================
+// Init
+// =============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
   loadDashboard();

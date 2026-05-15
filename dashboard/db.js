@@ -253,6 +253,218 @@ function upsertPrGithub(data) {
   `).run(data);
 }
 
+/**
+ * Query PRs with dynamic filters, sorting, and search.
+ * All filtering happens in SQLite — no client-side filtering needed.
+ *
+ * Supported filters (all optional):
+ *   status, author, insider (1/0), draft (1/0), mergeable,
+ *   review_decision, label, has_review (1/0), has_findings (1/0),
+ *   merge_state, is_open (1/0), search (free text), assignee, reviewer,
+ *   min_additions, max_additions, min_deletions, max_deletions,
+ *   created_after, created_before,
+ *   sort (field name), order (asc/desc)
+ */
+function queryPrs(filters = {}) {
+  const db = getDb();
+  const conditions = [];
+  const params = [];
+
+  // --- Status ---
+  if (filters.status) {
+    conditions.push('p.status = ?');
+    params.push(filters.status);
+  }
+
+  // --- Author ---
+  if (filters.author) {
+    conditions.push('LOWER(p.author) = LOWER(?)');
+    params.push(filters.author);
+  }
+
+  // --- Insider/Outsider ---
+  if (filters.insider !== undefined && filters.insider !== '') {
+    conditions.push('p.is_insider = ?');
+    params.push(parseInt(filters.insider, 10));
+  }
+
+  // --- Draft ---
+  if (filters.draft !== undefined && filters.draft !== '') {
+    conditions.push('g.is_draft = ?');
+    params.push(parseInt(filters.draft, 10));
+  }
+
+  // --- Mergeable ---
+  if (filters.mergeable) {
+    conditions.push('g.mergeable = ?');
+    params.push(filters.mergeable);
+  }
+
+  // --- Review Decision ---
+  if (filters.review_decision) {
+    if (filters.review_decision === 'NONE') {
+      conditions.push("(g.review_decision IS NULL OR g.review_decision = '')");
+    } else {
+      conditions.push('g.review_decision = ?');
+      params.push(filters.review_decision);
+    }
+  }
+
+  // --- Label (partial match) ---
+  if (filters.label) {
+    conditions.push("g.labels LIKE '%' || ? || '%'");
+    params.push(filters.label);
+  }
+
+  // --- Has Review (at least one cycle) ---
+  if (filters.has_review !== undefined && filters.has_review !== '') {
+    if (parseInt(filters.has_review, 10) === 1) {
+      conditions.push('rc.cycle_number IS NOT NULL');
+    } else {
+      conditions.push('rc.cycle_number IS NULL');
+    }
+  }
+
+  // --- Has Findings ---
+  if (filters.has_findings !== undefined && filters.has_findings !== '') {
+    if (parseInt(filters.has_findings, 10) === 1) {
+      conditions.push('(rc.findings_critical > 0 OR rc.findings_major > 0 OR rc.findings_minor > 0)');
+    } else {
+      conditions.push('(rc.findings_critical IS NULL OR (rc.findings_critical = 0 AND rc.findings_major = 0 AND rc.findings_minor = 0))');
+    }
+  }
+
+  // --- Merge State ---
+  if (filters.merge_state) {
+    conditions.push('g.merge_state_status = ?');
+    params.push(filters.merge_state);
+  }
+
+  // --- Is Open ---
+  if (filters.is_open !== undefined && filters.is_open !== '') {
+    conditions.push('g.is_open = ?');
+    params.push(parseInt(filters.is_open, 10));
+  }
+
+  // --- Assignee ---
+  if (filters.assignee) {
+    conditions.push("g.assignees LIKE '%' || ? || '%'");
+    params.push(filters.assignee);
+  }
+
+  // --- Reviewer ---
+  if (filters.reviewer) {
+    conditions.push("g.reviewers LIKE '%' || ? || '%'");
+    params.push(filters.reviewer);
+  }
+
+  // --- Diff size filters ---
+  if (filters.min_additions) {
+    conditions.push('g.additions >= ?');
+    params.push(parseInt(filters.min_additions, 10));
+  }
+  if (filters.max_additions) {
+    conditions.push('g.additions <= ?');
+    params.push(parseInt(filters.max_additions, 10));
+  }
+  if (filters.min_deletions) {
+    conditions.push('g.deletions >= ?');
+    params.push(parseInt(filters.min_deletions, 10));
+  }
+  if (filters.max_deletions) {
+    conditions.push('g.deletions <= ?');
+    params.push(parseInt(filters.max_deletions, 10));
+  }
+
+  // --- Date filters ---
+  if (filters.created_after) {
+    conditions.push('p.created_at >= ?');
+    params.push(filters.created_after);
+  }
+  if (filters.created_before) {
+    conditions.push('p.created_at <= ?');
+    params.push(filters.created_before);
+  }
+
+  // --- Free text search ---
+  if (filters.search) {
+    conditions.push("(CAST(p.id AS TEXT) LIKE '%' || ? || '%' OR LOWER(p.title) LIKE '%' || LOWER(?) || '%' OR LOWER(p.author) LIKE '%' || LOWER(?) || '%' OR LOWER(g.labels) LIKE '%' || LOWER(?) || '%')");
+    params.push(filters.search, filters.search, filters.search, filters.search);
+  }
+
+  // --- Build WHERE clause ---
+  const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+  // --- Sorting ---
+  const sortableFields = {
+    'id': 'p.id',
+    'title': 'p.title',
+    'author': 'p.author',
+    'status': 'p.status',
+    'created': 'p.created_at',
+    'updated': 'g.updated_at_gh',
+    'additions': 'g.additions',
+    'deletions': 'g.deletions',
+    'changed_files': 'g.changed_files',
+    'cycles': 'rc.cycle_number',
+    'last_reviewed': 'p.last_review_date',
+    'duration': 'rc.duration_seconds',
+    'findings': '(COALESCE(rc.findings_critical,0)*100 + COALESCE(rc.findings_major,0)*10 + COALESCE(rc.findings_minor,0))',
+  };
+  const sortField = sortableFields[filters.sort] || 'p.id';
+  const sortOrder = filters.order === 'asc' ? 'ASC' : 'DESC';
+
+  const sql = `
+    SELECT p.*,
+      g.is_draft as gh_is_draft,
+      g.review_decision,
+      g.mergeable,
+      g.merge_state_status,
+      g.additions,
+      g.deletions,
+      g.changed_files,
+      g.labels,
+      g.reviewers,
+      g.assignees,
+      g.updated_at_gh,
+      g.is_open,
+      rc.cycle_number as latest_cycle,
+      rc.status as cycle_status,
+      rc.started_at as cycle_started,
+      rc.ended_at as cycle_ended,
+      rc.duration_seconds as cycle_duration,
+      rc.findings_critical,
+      rc.findings_major,
+      rc.findings_minor,
+      rc.action_taken
+    FROM prs p
+    LEFT JOIN pr_github g ON g.pr_id = p.id
+    LEFT JOIN review_cycles rc ON rc.pr_id = p.id
+      AND rc.cycle_number = (SELECT MAX(rc2.cycle_number) FROM review_cycles rc2 WHERE rc2.pr_id = p.id)
+    ${where}
+    ORDER BY ${sortField} ${sortOrder}
+  `;
+
+  return db.prepare(sql).all(...params);
+}
+
+/**
+ * Get distinct values for filter dropdowns.
+ */
+function getFilterOptions() {
+  const db = getDb();
+
+  const authors = db.prepare('SELECT DISTINCT author FROM prs WHERE author IS NOT NULL ORDER BY author').all().map(r => r.author);
+  const statuses = db.prepare("SELECT DISTINCT status FROM prs WHERE status IS NOT NULL ORDER BY status").all().map(r => r.status);
+  const labels = db.prepare("SELECT DISTINCT labels FROM pr_github WHERE labels IS NOT NULL AND labels != '' ORDER BY labels").all().map(r => r.labels);
+  const mergeStates = db.prepare("SELECT DISTINCT merge_state_status FROM pr_github WHERE merge_state_status IS NOT NULL ORDER BY merge_state_status").all().map(r => r.merge_state_status);
+
+  // Flatten labels (they're comma-separated)
+  const uniqueLabels = [...new Set(labels.flatMap(l => l.split(', ').map(s => s.trim())).filter(Boolean))].sort();
+
+  return { authors, statuses, labels: uniqueLabels, mergeStates };
+}
+
 function markClosedPrs(openPrIds) {
   const db = getDb();
   if (openPrIds.length === 0) return;
@@ -280,6 +492,8 @@ module.exports = {
   insertCronRun,
   getAllCronRuns,
   getPrsWithLatestCycle,
+  queryPrs,
+  getFilterOptions,
   markClosedPrs,
   close,
 };

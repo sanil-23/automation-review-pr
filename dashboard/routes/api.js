@@ -21,9 +21,34 @@ router.get('/stats', (req, res) => {
   res.json({ ...stats, liveStatus });
 });
 
-// GET /api/prs
+// GET /api/prs?status=pending&author=oxoxDev&insider=1&draft=0&mergeable=MERGEABLE&...
 router.get('/prs', (req, res) => {
-  const prs = db.getPrsWithLatestCycle();
+  const filters = {
+    status: req.query.status || undefined,
+    author: req.query.author || undefined,
+    insider: req.query.insider,
+    draft: req.query.draft,
+    mergeable: req.query.mergeable || undefined,
+    review_decision: req.query.review_decision || undefined,
+    label: req.query.label || undefined,
+    has_review: req.query.has_review,
+    has_findings: req.query.has_findings,
+    merge_state: req.query.merge_state || undefined,
+    is_open: req.query.is_open,
+    assignee: req.query.assignee || undefined,
+    reviewer: req.query.reviewer || undefined,
+    search: req.query.search || undefined,
+    min_additions: req.query.min_additions || undefined,
+    max_additions: req.query.max_additions || undefined,
+    min_deletions: req.query.min_deletions || undefined,
+    max_deletions: req.query.max_deletions || undefined,
+    created_after: req.query.created_after || undefined,
+    created_before: req.query.created_before || undefined,
+    sort: req.query.sort || undefined,
+    order: req.query.order || undefined,
+  };
+
+  const prs = db.queryPrs(filters);
   const liveStatus = sync.getLiveStatus();
 
   const enriched = prs.map(pr => ({
@@ -33,6 +58,12 @@ router.get('/prs', (req, res) => {
   }));
 
   res.json(enriched);
+});
+
+// GET /api/filters — distinct values for filter dropdowns
+router.get('/filters', (req, res) => {
+  const options = db.getFilterOptions();
+  res.json(options);
 });
 
 // GET /api/prs/:id
