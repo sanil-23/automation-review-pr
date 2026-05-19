@@ -1,4 +1,4 @@
-const { execSync } = require('child_process');
+const { execSync, fork } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const db = require('./db');
@@ -6,11 +6,14 @@ const db = require('./db');
 const REPO = 'tinyhumansai/openhuman';
 const BASE_DIR = path.resolve(__dirname, '..');
 const MERGED_DIR = path.join(BASE_DIR, 'already-merged');
-const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const WORKER_PATH = path.join(__dirname, 'github-sync-worker.js');
+const SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
 let _orgMembers = null;
 let _orgMembersFetchedAt = 0;
 const ORG_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+let _syncing = false; // prevent overlapping syncs
 
 function ghJson(cmd) {
   try {
@@ -23,29 +26,25 @@ function ghJson(cmd) {
   }
 }
 
-function ghText(cmd) {
-  try {
-    return execSync(cmd, { encoding: 'utf-8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-  } catch {
-    return null;
-  }
-}
-
 function fetchOrgMembers() {
   const now = Date.now();
   if (_orgMembers && (now - _orgMembersFetchedAt) < ORG_CACHE_TTL) {
     return _orgMembers;
   }
 
-  const members = ghText(`gh api orgs/tinyhumansai/members --jq '.[].login'`);
-  if (members) {
-    _orgMembers = new Set(members.split('\n').map(s => s.trim().toLowerCase()).filter(Boolean));
-    _orgMembersFetchedAt = now;
-    console.log(`[github-sync] Cached ${_orgMembers.size} org members`);
-  } else {
-    _orgMembers = _orgMembers || new Set();
-  }
-  return _orgMembers;
+  try {
+    const out = execSync(
+      `gh api orgs/tinyhumansai/members --jq '.[].login'`,
+      { encoding: 'utf-8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] }
+    );
+    if (out) {
+      _orgMembers = new Set(out.trim().split('\n').map(s => s.trim().toLowerCase()).filter(Boolean));
+      _orgMembersFetchedAt = now;
+      console.log(`[github-sync] Cached ${_orgMembers.size} org members`);
+    }
+  } catch {}
+
+  return _orgMembers || new Set();
 }
 
 function isMember(login) {
@@ -56,9 +55,6 @@ function isMember(login) {
 
 /**
  * Handle a PR that has been merged.
- * 1. Update status to 'merged'
- * 2. Set is_open = 0
- * 3. Move tracking file to already-merged/
  */
 function handlePrMerged(prId) {
   db.updatePrStatus(prId, 'merged');
@@ -84,8 +80,6 @@ function moveTrackingFile(prId) {
   const pr = db.getPrById(prId);
   if (!pr || !pr.tracking_file_path) return;
   if (!fs.existsSync(pr.tracking_file_path)) return;
-
-  // Already in the right place
   if (pr.tracking_file_path.includes('already-merged')) return;
 
   fs.mkdirSync(MERGED_DIR, { recursive: true });
@@ -100,108 +94,16 @@ function moveTrackingFile(prId) {
   }
 }
 
-function fetchAllOpenPrs() {
-  console.log(`[github-sync] Fetching open PRs from ${REPO}...`);
-
-  // Paginated fetch — gh pr list with 200 causes GitHub GraphQL 502s on large repos
-  // Use gh api graphql with cursor-based pagination in batches of 50
-  const PAGE_SIZE = 50;
-  const prs = [];
-
-  let cursor = null;
-  let hasNext = true;
-
-  while (hasNext && prs.length < 200) {
-    const afterClause = cursor ? `, after: \\"${cursor}\\"` : '';
-    const query = `query { repository(owner: \\"tinyhumansai\\", name: \\"openhuman\\") { pullRequests(first: ${PAGE_SIZE}, states: OPEN, orderBy: {field: CREATED_AT, direction: DESC}${afterClause}) { pageInfo { hasNextPage endCursor } nodes { number title isDraft reviewDecision createdAt updatedAt headRefName baseRefName url author { login } labels(first: 10) { nodes { name } } reviewRequests(first: 10) { nodes { requestedReviewer { ... on User { login } ... on Team { slug } } } } assignees(first: 10) { nodes { login } } } } } }`;
-
-    const batch = ghJson(`gh api graphql -f query="${query}"`);
-    if (!batch) {
-      if (prs.length === 0) {
-        console.error('[github-sync] Failed to fetch PRs');
-        return;
-      }
-      console.warn(`[github-sync] Partial fetch — got ${prs.length} PRs before failure`);
-      break;
-    }
-
-    const prData = batch?.data?.repository?.pullRequests;
-    if (!prData || !prData.nodes) break;
-
-    for (const node of prData.nodes) {
-      prs.push({
-        number: node.number,
-        title: node.title,
-        isDraft: node.isDraft,
-        reviewDecision: node.reviewDecision,
-        createdAt: node.createdAt,
-        updatedAt: node.updatedAt,
-        headRefName: node.headRefName,
-        baseRefName: node.baseRefName,
-        url: node.url,
-        author: node.author ? { login: node.author.login } : {},
-        labels: (node.labels?.nodes || []).map(l => ({ name: l.name })),
-        reviewRequests: (node.reviewRequests?.nodes || []).map(r => r.requestedReviewer || {}),
-        assignees: (node.assignees?.nodes || []),
-      });
-    }
-
-    hasNext = prData.pageInfo.hasNextPage;
-    cursor = prData.pageInfo.endCursor;
-    console.log(`[github-sync]   Fetched page: ${prs.length} PRs so far...`);
+/**
+ * Process results from the worker — runs on the main thread but only does
+ * fast DB writes (no network I/O), so it doesn't block meaningfully.
+ */
+function processWorkerResults(prs, orgMembers) {
+  // Update org member cache
+  if (orgMembers && orgMembers.length > 0) {
+    _orgMembers = new Set(orgMembers.map(m => m.toLowerCase()));
+    _orgMembersFetchedAt = Date.now();
   }
-
-  // Enrich each PR with diff stats (additions/deletions/changedFiles) via per-PR view
-  console.log(`[github-sync] Enriching ${prs.length} PRs with diff stats...`);
-  for (const pr of prs) {
-    try {
-      const out = execSync(
-        `gh pr view ${pr.number} --repo ${REPO} --json additions,deletions,changedFiles`,
-        { encoding: 'utf-8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }
-      );
-      const diff = JSON.parse(out);
-      pr.additions = diff.additions;
-      pr.deletions = diff.deletions;
-      pr.changedFiles = diff.changedFiles;
-    } catch {
-      pr.additions = 0;
-      pr.deletions = 0;
-      pr.changedFiles = 0;
-    }
-  }
-
-  // Fetch mergeable status for non-draft PRs only (requires per-PR GitHub computation)
-  const nonDraftPrs = prs.filter(p => !p.isDraft);
-  console.log(`[github-sync] Fetching merge status for ${nonDraftPrs.length} non-draft PRs...`);
-  for (const pr of nonDraftPrs) {
-    try {
-      const out = execSync(
-        `gh pr view ${pr.number} --repo ${REPO} --json mergeable,mergeStateStatus`,
-        { encoding: 'utf-8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }
-      );
-      const mergeInfo = JSON.parse(out);
-      pr.mergeable = mergeInfo.mergeable;
-      pr.mergeStateStatus = mergeInfo.mergeStateStatus;
-    } catch {
-      // Skip silently — merge info is optional
-    }
-  }
-
-  // Fetch CI checks for non-draft PRs
-  console.log(`[github-sync] Fetching CI checks for ${nonDraftPrs.length} non-draft PRs...`);
-  for (const pr of nonDraftPrs) {
-    try {
-      const out = execSync(
-        `gh pr checks ${pr.number} --repo ${REPO} --json name,bucket,link,startedAt,completedAt,workflow`,
-        { encoding: 'utf-8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }
-      );
-      pr._ciChecks = JSON.parse(out);
-    } catch {
-      // No checks or error — skip
-    }
-  }
-
-  console.log(`[github-sync] Fetched ${prs.length} open PRs`);
 
   const existingPrs = new Map();
   for (const row of db.getAllPrs()) {
@@ -213,7 +115,6 @@ function fetchAllOpenPrs() {
     const member = isMember(authorLogin);
     const existing = existingPrs.get(pr.number);
 
-    // Determine status: preserve review status if we have one, otherwise derive from GH data
     let status = 'pending';
     if (existing && existing.status && existing.status !== 'pending') {
       status = existing.status;
@@ -243,14 +144,12 @@ function fetchAllOpenPrs() {
       location: existing?.location || null,
     });
 
-    // Compute CI summary
     const checks = pr._ciChecks || [];
     const ciTotal = checks.length;
     const ciPass = checks.filter(c => c.bucket === 'pass').length;
     const ciFail = checks.filter(c => c.bucket === 'fail').length;
     const ciPending = checks.filter(c => c.bucket === 'pending' || c.bucket === 'queued').length;
 
-    // Store extended GitHub metadata
     db.upsertPrGithub({
       pr_id: pr.number,
       is_draft: pr.isDraft ? 1 : 0,
@@ -273,13 +172,13 @@ function fetchAllOpenPrs() {
     });
   }
 
-  // Find PRs that were open before but are no longer in the open list
+  // Detect merged/closed PRs
   const openIds = new Set(prs.map(p => p.number));
   const previouslyOpen = db.getAllPrs().filter(p => {
     return !openIds.has(p.id) && p.status !== 'merged' && p.status !== 'closed';
   });
 
-  // Detect merged/closed PRs and handle them
+  // Check each previously-open PR — these are few, so sync is fine
   for (const pr of previouslyOpen) {
     try {
       const out = execSync(
@@ -287,14 +186,9 @@ function fetchAllOpenPrs() {
         { encoding: 'utf-8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }
       );
       const info = JSON.parse(out);
-      if (info.state === 'MERGED') {
-        handlePrMerged(pr.id);
-      } else if (info.state === 'CLOSED') {
-        handlePrClosed(pr.id);
-      }
-    } catch {
-      // Can't fetch — skip
-    }
+      if (info.state === 'MERGED') handlePrMerged(pr.id);
+      else if (info.state === 'CLOSED') handlePrClosed(pr.id);
+    } catch {}
   }
 
   db.markClosedPrs(prs.map(p => p.number));
@@ -302,10 +196,56 @@ function fetchAllOpenPrs() {
   console.log(`[github-sync] Sync complete: ${prs.length} open PRs + ${previouslyOpen.length} closed/merged checked`);
 }
 
+/**
+ * Spawn the worker process to fetch all open PRs.
+ * Non-blocking — the worker runs in a child process.
+ */
+function fetchAllOpenPrs() {
+  if (_syncing) {
+    console.log('[github-sync] Sync already in progress — skipping');
+    return;
+  }
+
+  _syncing = true;
+  console.log('[github-sync] Spawning worker to fetch open PRs...');
+
+  const worker = fork(WORKER_PATH, [], {
+    stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+  });
+
+  // Forward worker logs to server console
+  worker.stdout.on('data', (data) => process.stdout.write(data));
+  worker.stderr.on('data', (data) => process.stderr.write(data));
+
+  worker.on('message', (msg) => {
+    if (msg.type === 'result') {
+      try {
+        processWorkerResults(msg.prs, msg.orgMembers);
+      } catch (err) {
+        console.error(`[github-sync] Error processing worker results: ${err.message}`);
+      }
+    } else if (msg.type === 'error') {
+      console.error(`[github-sync] Worker error: ${msg.error}`);
+    }
+  });
+
+  worker.on('exit', (code) => {
+    _syncing = false;
+    if (code !== 0 && code !== null) {
+      console.error(`[github-sync] Worker exited with code ${code}`);
+    }
+  });
+
+  worker.on('error', (err) => {
+    _syncing = false;
+    console.error(`[github-sync] Worker failed to start: ${err.message}`);
+  });
+}
+
 let _interval = null;
 
 function startPeriodicSync() {
-  // Initial sync
+  // Initial sync (non-blocking)
   fetchAllOpenPrs();
 
   // Repeat every 5 min
@@ -325,7 +265,7 @@ function stopPeriodicSync() {
 
 /**
  * Fetch and sync a single PR from GitHub API + tracking file.
- * Returns the updated PR data or throws on failure.
+ * This is fast enough to run synchronously (1 PR = 2-3 API calls).
  */
 function fetchSinglePr(prId) {
   console.log(`[github-sync] Fetching single PR #${prId} from ${REPO}...`);
@@ -341,9 +281,8 @@ function fetchSinglePr(prId) {
   const pr = ghJson(`gh pr view ${prId} --repo ${REPO} --json ${fields},mergeable,mergeStateStatus`);
   if (!pr) throw new Error(`Failed to fetch PR #${prId} from GitHub`);
 
-  // Handle merged/closed
-  if (pr.state === 'MERGED') { handlePrMerged(prId); }
-  if (pr.state === 'CLOSED') { handlePrClosed(prId); }
+  if (pr.state === 'MERGED') handlePrMerged(prId);
+  if (pr.state === 'CLOSED') handlePrClosed(prId);
 
   const authorLogin = pr.author?.login || '';
   const member = isMember(authorLogin);
@@ -380,7 +319,6 @@ function fetchSinglePr(prId) {
     location: existing?.location || null,
   });
 
-  // CI checks
   let checks = [];
   if (!pr.isDraft) {
     try {
