@@ -883,6 +883,7 @@ function renderPrDetail(pr, container) {
 
   const isDraft = pr.gh_is_draft || pr.is_draft;
   const totalFindings = (pr.cycles || []).reduce((sum, c) => sum + (c.findings_critical || 0) + (c.findings_major || 0) + (c.findings_minor || 0), 0);
+  const latestSummary = (pr.cycles || []).slice().reverse().find(c => c.summary)?.summary;
 
   container.innerHTML = `
     <a href="/" class="back-link">< Back to Dashboard</a>
@@ -896,6 +897,12 @@ function renderPrDetail(pr, container) {
         <div><strong>Updated:</strong> ${pr.updated_at_gh ? timeAgo(pr.updated_at_gh) : '-'}</div>
         ${pr.url ? `<div><a href="${pr.url}" target="_blank">View on GitHub</a></div>` : ''}
       </div>
+
+      ${latestSummary ? `
+      <div style="margin-top:12px;padding:12px 16px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:14px;line-height:1.5;color:var(--text)">
+        ${esc(latestSummary)}
+      </div>
+      ` : ''}
 
       <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
         <div class="stat-card" style="padding:12px">
