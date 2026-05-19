@@ -955,7 +955,7 @@ function renderPrDetail(pr, container) {
         <div><strong>Branch:</strong> ${esc(pr.branch)} -> ${esc(pr.base_branch)}</div>
         <div><strong>Created:</strong> ${pr.created_at ? new Date(pr.created_at).toLocaleString() : '-'}</div>
         <div><strong>Updated:</strong> ${pr.updated_at_gh ? timeAgo(pr.updated_at_gh) : '-'}</div>
-        ${pr.url ? `<div><a href="${pr.url}" target="_blank">View on GitHub</a></div>` : ''}
+        ${pr.url ? `<div><a href="${pr.url}" target="_blank" rel="noopener noreferrer" class="btn btn-sm">View on GitHub</a></div>` : ''}
       </div>
 
       ${latestSummary ? `
