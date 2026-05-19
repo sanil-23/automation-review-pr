@@ -367,7 +367,7 @@ function renderTable(prs) {
   }
 
   tableBody.innerHTML = prs.map(pr => `
-    <tr${pr.gh_is_draft ? ' style="opacity:0.6"' : ''}>
+    <tr${pr.gh_is_draft ? ' style="opacity:0.6"' : ''}${pr.status === 'to-be-closed' ? ' style="background:rgba(248,81,73,0.08);border-left:3px solid var(--red)"' : ''}>
       <td class="pr-number"><a href="/pr.html?pr=${pr.id}">#${pr.id}</a></td>
       <td class="pr-title" title="${esc(pr.title)}">${esc(pr.title) || '-'}${pr.gh_is_draft ? ' <span class="badge badge-purple" style="font-size:10px">draft</span>' : ''}</td>
       <td><a href="javascript:void(0)" onclick="applyFilter('author','${esc(pr.author)}')">${esc(pr.author) || '-'}</a></td>
