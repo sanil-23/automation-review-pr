@@ -628,6 +628,13 @@ async function mergePr(prId, btn) {
       ? `<span class="badge badge-green">${passCount}/${data.checks.length} passing</span>`
       : `<span class="badge badge-yellow">${passCount}/${data.checks.length} passing, ${data.failCount} failing</span>`;
 
+    const failWarning = !data.allPass ? `
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 12px;background:rgba(248,81,73,0.1);border:1px solid rgba(248,81,73,0.2);border-radius:var(--radius);cursor:pointer;font-size:13px;color:var(--red)">
+        <input type="checkbox" id="modal-force-check" onchange="document.getElementById('modal-merge-btn').disabled = !this.checked">
+        ${data.failCount} check${data.failCount > 1 ? 's are' : ' is'} failing — merge anyway
+      </label>
+    ` : '';
+
     const modalHtml = `
       <h3 style="margin-bottom:12px">Merge PR #${prId}</h3>
       <div style="margin-bottom:12px">${summaryBadge}</div>
@@ -637,9 +644,10 @@ async function mergePr(prId, btn) {
           <tbody>${checksRows}</tbody>
         </table>
       </div>
+      ${failWarning}
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-purple" id="modal-merge-btn" onclick="executeMerge(${prId})">Squash & Merge</button>
+        <button class="btn btn-purple" id="modal-merge-btn" ${!data.allPass ? 'disabled' : ''} onclick="executeMerge(${prId})">Squash & Merge</button>
       </div>
     `;
 
