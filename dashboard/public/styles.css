@@ -308,6 +308,16 @@ tbody tr:hover { background: var(--bg-tertiary); }
   background: rgba(63,185,80,0.25);
 }
 
+.btn-purple {
+  background: rgba(188,140,255,0.15);
+  border-color: rgba(188,140,255,0.3);
+  color: var(--purple);
+}
+
+.btn-purple:hover {
+  background: rgba(188,140,255,0.25);
+}
+
 .btn-sm {
   padding: 3px 10px;
   font-size: 12px;

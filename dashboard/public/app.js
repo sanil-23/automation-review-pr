@@ -390,6 +390,7 @@ function renderTable(prs) {
       <td>
           ${pr.status === 'clean' ? `<button class="btn btn-sm btn-green" onclick="approvePr(${pr.id}, this)">Approve</button>` : ''}
           ${pr.status === 'approved' ? `<button class="btn btn-sm btn-danger" onclick="unapprovePr(${pr.id}, this)">Unapprove</button>` : ''}
+          ${(pr.status === 'approved' || pr.review_decision === 'APPROVED') && !pr.is_running ? `<button class="btn btn-sm btn-purple" onclick="mergePr(${pr.id}, this)">Merge</button>` : ''}
           ${pr.is_running
             ? `<button class="btn btn-sm btn-danger" onclick="cancelReview(${pr.id})">Cancel</button>`
             : `<button class="btn btn-sm btn-primary" onclick="triggerReview(${pr.id})">
@@ -581,6 +582,32 @@ async function approvePr(prId, btn) {
     alert('Failed to approve: ' + err.message);
     btn.disabled = false;
     btn.textContent = 'Approve';
+  }
+}
+
+async function mergePr(prId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Merging...';
+
+  try {
+    const res = await fetch(`${API}/api/trigger/merge/${prId}`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      btn.textContent = 'Running...';
+      // If on detail page, start live log polling
+      const container = document.getElementById('pr-detail');
+      if (container) {
+        checkAndStartLiveLog(prId);
+      }
+    } else {
+      alert(data.error || 'Failed to start merge');
+      btn.disabled = false;
+      btn.textContent = 'Merge';
+    }
+  } catch (err) {
+    alert('Failed to merge: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = 'Merge';
   }
 }
 
@@ -893,6 +920,9 @@ function renderPrDetail(pr, container) {
           : ''}
         ${pr.status === 'approved'
           ? `<button class="btn btn-danger" onclick="unapprovePr(${pr.id}, this)">Unapprove</button>`
+          : ''}
+        ${(pr.status === 'approved' || pr.review_decision === 'APPROVED') && !pr.is_running
+          ? `<button class="btn btn-purple" onclick="mergePr(${pr.id}, this)">Merge</button>`
           : ''}
         ${pr.is_running
           ? `<button class="btn btn-danger" onclick="cancelReview(${pr.id})">Cancel Review</button>
