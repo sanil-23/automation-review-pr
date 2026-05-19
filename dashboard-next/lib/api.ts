@@ -74,15 +74,33 @@ export const gh = {
   // Set of PR numbers currently open on GitHub. Used as the source of truth
   // for filtering merged/closed PRs out of the dashboard without touching the
   // local DB. Paginates up to 4 pages (400 PRs) which is plenty for this repo.
+  //
+  // Cached for 2 min in-memory: unauthenticated GitHub allows 60 req/hr per
+  // IP, so polling every 30s would burn the budget in ~30 min. With a 2-min
+  // cache, the dashboard issues at most ~30 GitHub calls/hr regardless of
+  // local poll cadence.
   async openPullNumbers(): Promise<Set<number>> {
+    const now = Date.now();
+    if (_openPullsCache && now - _openPullsCache.at < OPEN_PULLS_TTL_MS) {
+      return _openPullsCache.ids;
+    }
     const ids = new Set<number>();
     for (let page = 1; page <= 4; page++) {
       const r = await fetch(`${GH_API}/pulls?state=open&per_page=100&page=${page}`);
-      if (!r.ok) break;
+      if (!r.ok) {
+        // If we already have a stale snapshot, keep returning it instead of
+        // an empty set so the UI doesn't accidentally hide everything.
+        if (_openPullsCache) return _openPullsCache.ids;
+        throw new Error(`${r.status} from GitHub`);
+      }
       const batch: Array<{ number: number }> = await r.json();
       for (const p of batch) ids.add(p.number);
       if (batch.length < 100) break;
     }
+    _openPullsCache = { ids, at: now };
     return ids;
   },
 };
+
+const OPEN_PULLS_TTL_MS = 2 * 60 * 1000;
+let _openPullsCache: { ids: Set<number>; at: number } | null = null;

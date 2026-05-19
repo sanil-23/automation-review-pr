@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db, sync, triggerJobs } from '@/lib/server-deps';
+import { db, sync, triggerJobs, tmux } from '@/lib/server-deps';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +13,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const liveStatus = sync.getLiveStatus();
   const job = triggerJobs.activeJobs.get(`review-${id}`);
   const statusRunning = liveStatus && liveStatus.running && liveStatus.pr === id;
-  const isRunning = job ? !job.done : statusRunning;
+  const tmuxRunning = tmux.isRunning(id);
+  const tmuxWindow = tmux.hasWindow(id) ? `${tmux.SESSION}:pr-${id}` : null;
+  const tmuxExit = tmuxWindow ? tmux.exitCode(id) : null;
+  const isRunning = job ? !job.done : tmuxRunning || statusRunning;
 
-  return NextResponse.json({ ...pr, cycles, is_running: isRunning });
+  return NextResponse.json({
+    ...pr,
+    cycles,
+    is_running: isRunning,
+    tmux_window: tmuxWindow,
+    tmux_exit_code: tmuxExit,
+  });
 }

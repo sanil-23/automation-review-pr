@@ -12,3 +12,5 @@ export const githubSync = require('./github-sync');
 export const parser = require('./parser');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 export const triggerJobs = require('./trigger-jobs');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+export const tmux = require('./tmux');
