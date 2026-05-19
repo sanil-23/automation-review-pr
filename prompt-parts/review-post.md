@@ -6,9 +6,7 @@ gh pr view __PR_NUMBER__ --repo tinyhumansai/openhuman --json commits --jq '.com
 ```
 
 ### Review structure
-1. **Walkthrough** — 2-3 sentence summary, value assessment (what this adds to the app), and overall verdict
-2. **Change summary table** — file, change type, description
-3. **Inline comments** — severity tag + what's wrong + suggested fix
+1. **Inline comments** — severity tag + what's wrong + suggested fix
 
 ### Post as a single PR review
 ```bash
