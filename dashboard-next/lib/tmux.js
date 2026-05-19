@@ -115,9 +115,115 @@ function quote(s) {
 }
 
 /**
- * Spawn `pnpm review fix <prId>` inside one of the openhuman workspace
- * clones, in its own tmux window named `fix-<id>`. Separate from `pr-<id>`
- * (the review window) so both can run concurrently.
+ * Enumerate all panes in the super-review session with their current
+ * foreground command and working directory.
+ */
+function listPanes() {
+  if (!sessionExists()) return [];
+  const out = tryExec(
+    `tmux list-panes -s -t ${SESSION} -F '#{pane_id}\t#{window_name}\t#{pane_current_command}\t#{pane_current_path}'`,
+  );
+  if (!out) return [];
+  return out
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [pane_id, window, command, cwd] = line.split('\t');
+      return { pane_id, window, command, cwd };
+    });
+}
+
+const IDLE_SHELLS = new Set(['bash', 'zsh', 'sh', 'fish']);
+
+/**
+ * Find an idle pane that's already sitting in an openhuman workspace clone.
+ * "Idle" means its foreground command is a plain shell. Returns null if no
+ * suitable pane is available.
+ */
+function pickIdlePane() {
+  const panes = listPanes();
+  return (
+    panes.find(
+      (p) =>
+        IDLE_SHELLS.has(p.command) &&
+        /\/openhuman-\d+(?:\/|$)/.test(p.cwd || ''),
+    ) ?? null
+  );
+}
+
+function fixMappingPath(prId) {
+  return path.join(STATE_DIR, `fix-${prId}.json`);
+}
+
+function fixMarkerPath(prId) {
+  return path.join(STATE_DIR, `fix-${prId}.exit`);
+}
+
+/**
+ * Send `pnpm review fix <prId>` to an idle openhuman-* pane via send-keys.
+ * Writes a mapping file capturing which pane was targeted so we can show
+ * status / cancel later. Tee'ing is impossible (claude needs a real TTY),
+ * so we attach `tmux pipe-pane` to mirror output to logFile.
+ */
+function startFixInPane(prId, logFile) {
+  if (!isAvailable()) throw new Error('tmux is not installed on PATH');
+  ensureSession();
+  fs.mkdirSync(STATE_DIR, { recursive: true });
+
+  if (isFixRunning(prId)) {
+    throw new Error(`Fix for PR #${prId} is already running`);
+  }
+
+  const pane = pickIdlePane();
+  if (!pane) {
+    throw new Error(
+      'No idle openhuman-* pane available. Start one in your tmux session, or free up an existing one.',
+    );
+  }
+
+  try { fs.unlinkSync(fixMarkerPath(prId)); } catch {}
+
+  const marker = fixMarkerPath(prId);
+  // The trailing `; echo $? > marker` runs in the same shell after the fix
+  // completes, capturing its exit code. Sending C-m executes the line.
+  const cmd = `pnpm review fix ${Number(prId)} ; echo $? > ${quote(marker)}`;
+  exec(`tmux send-keys -t ${pane.pane_id} ${quote(cmd)} C-m`);
+
+  // Pipe pane output to a log file. -o toggles, but the pane was idle so
+  // there shouldn't be an existing pipe.
+  tryExec(`tmux pipe-pane -o -t ${pane.pane_id} ${quote(`cat >> ${logFile}`)}`);
+
+  const mapping = {
+    pane_id: pane.pane_id,
+    window: pane.window,
+    workspace: pane.cwd,
+    logFile,
+    started_at: new Date().toISOString(),
+  };
+  fs.writeFileSync(fixMappingPath(prId), JSON.stringify(mapping, null, 2));
+
+  return {
+    session: SESSION,
+    window: pane.window,
+    pane_id: pane.pane_id,
+    workspace: pane.cwd,
+    logFile,
+    marker,
+    attach: `tmux attach -t ${SESSION} \\; select-window -t ${pane.window}`,
+  };
+}
+
+function getFixMapping(prId) {
+  try {
+    return JSON.parse(fs.readFileSync(fixMappingPath(prId), 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Legacy: spawn `pnpm review fix` in its own new window. Kept around but
+ * unused — the pane-targeting flow is the default.
  */
 function startFix(prId, workspaceDir, logFile) {
   if (!isAvailable()) throw new Error('tmux is not installed on PATH');
@@ -156,13 +262,29 @@ function startFix(prId, workspaceDir, logFile) {
 }
 
 function isFixRunning(prId) {
-  if (!listWindows().includes(`fix-${prId}`)) return false;
-  return !fs.existsSync(path.join(STATE_DIR, `fix-${prId}.exit`));
+  // Pane-based flow: mapping file exists and exit-code sentinel hasn't been
+  // written yet. Falls through to false if the user never triggered a fix.
+  const mapping = getFixMapping(prId);
+  if (!mapping) {
+    // Backwards compat with the new-window flow.
+    if (!listWindows().includes(`fix-${prId}`)) return false;
+    return !fs.existsSync(fixMarkerPath(prId));
+  }
+  return !fs.existsSync(fixMarkerPath(prId));
 }
 
-function killFixWindow(prId) {
-  tryExec(`tmux kill-window -t ${SESSION}:fix-${prId} 2>/dev/null`);
-  try { fs.unlinkSync(path.join(STATE_DIR, `fix-${prId}.exit`)); } catch {}
+function killFix(prId) {
+  const mapping = getFixMapping(prId);
+  if (mapping?.pane_id) {
+    // Ctrl-C the foreground process. Don't kill the pane itself — it might
+    // be one of the user's openhuman workspace panes they still want.
+    tryExec(`tmux send-keys -t ${mapping.pane_id} C-c`);
+    tryExec(`tmux pipe-pane -t ${mapping.pane_id}`); // stop piping
+  } else {
+    tryExec(`tmux kill-window -t ${SESSION}:fix-${prId} 2>/dev/null`);
+  }
+  try { fs.unlinkSync(fixMarkerPath(prId)); } catch {}
+  try { fs.unlinkSync(fixMappingPath(prId)); } catch {}
 }
 
 module.exports = {
@@ -173,12 +295,16 @@ module.exports = {
   ensureSession,
   startReview,
   startFix,
+  startFixInPane,
   killWindow,
-  killFixWindow,
+  killFix,
   hasWindow,
   isRunning,
   isFixRunning,
+  getFixMapping,
   exitCode,
   paneCommand,
   listWindows,
+  listPanes,
+  pickIdlePane,
 };

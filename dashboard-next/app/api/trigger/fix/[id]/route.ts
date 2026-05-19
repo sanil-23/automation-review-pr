@@ -4,13 +4,6 @@ import { triggerJobs, tmux } from '@/lib/server-deps';
 
 export const dynamic = 'force-dynamic';
 
-// Workspace where `pnpm review fix <pr>` should run. Defaults to
-// ~/work/tinyhumansai/openhuman-1 (the first of the 18 parallel clones used
-// by the super-review setup); override with FIX_WORKSPACE_DIR.
-const FIX_WORKSPACE_DIR =
-  process.env.FIX_WORKSPACE_DIR ||
-  path.join(process.env.HOME || '', 'work', 'tinyhumansai', 'openhuman-1');
-
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = await params;
   const prId = parseInt(idStr, 10);
@@ -25,17 +18,18 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const logFile = path.join(triggerJobs.LOGS_DIR, `fix-PR-${prId}-tmux-${triggerJobs.timestamp()}.log`);
 
   try {
-    const info = tmux.startFix(prId, FIX_WORKSPACE_DIR, logFile);
+    const info = tmux.startFixInPane(prId, logFile);
     return NextResponse.json({
       pr: prId,
       session: info.session,
       window: info.window,
+      pane_id: info.pane_id,
       workspace: info.workspace,
       attach: info.attach,
       logFile: info.logFile,
-      message: `Fix for PR #${prId} started in ${info.session}:${info.window}`,
+      message: `Fix for PR #${prId} sent to ${info.workspace} (${info.session}:${info.window})`,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }

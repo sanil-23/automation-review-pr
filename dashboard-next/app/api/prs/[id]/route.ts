@@ -17,7 +17,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const tmuxWindow = tmux.hasWindow(id) ? `${tmux.SESSION}:pr-${id}` : null;
   const tmuxExit = tmuxWindow ? tmux.exitCode(id) : null;
   const fixRunning = tmux.isFixRunning(id);
-  const fixWindow = tmux.listWindows().includes(`fix-${id}`) ? `${tmux.SESSION}:fix-${id}` : null;
+  const fixMapping = tmux.getFixMapping(id);
+  const fixWindow = fixMapping
+    ? `${tmux.SESSION}:${fixMapping.window}`
+    : tmux.listWindows().includes(`fix-${id}`)
+    ? `${tmux.SESSION}:fix-${id}`
+    : null;
   const isRunning = job ? !job.done : tmuxRunning || statusRunning;
 
   return NextResponse.json({
