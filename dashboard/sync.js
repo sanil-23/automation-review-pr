@@ -7,6 +7,7 @@ const BASE_DIR = path.resolve(__dirname, '..');
 const TRACKING_DIR = path.join(BASE_DIR, 'tinyhumansai-openhuman');
 const APPROVED_DIR = path.join(BASE_DIR, 'to-be-approved');
 const FULLY_APPROVED_DIR = path.join(BASE_DIR, 'approved');
+const TO_BE_CLOSED_DIR = path.join(BASE_DIR, 'to-be-closed');
 const MERGED_DIR = path.join(BASE_DIR, 'already-merged');
 const LOGS_DIR = path.join(BASE_DIR, 'logs');
 const STATUS_FILE = path.join(BASE_DIR, 'status.json');
@@ -119,6 +120,7 @@ function startWatching() {
   watchers.push(watchDir(TRACKING_DIR, 'tinyhumansai-openhuman'));
   watchers.push(watchDir(APPROVED_DIR, 'to-be-approved'));
   watchers.push(watchDir(FULLY_APPROVED_DIR, 'approved'));
+  watchers.push(watchDir(TO_BE_CLOSED_DIR, 'to-be-closed'));
   watchers.push(watchDir(MERGED_DIR, 'already-merged'));
   watchers.push(watchStatusFile());
   console.log('[sync] Watching: tinyhumansai-openhuman/, to-be-approved/, already-merged/, status.json');

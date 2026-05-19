@@ -29,6 +29,7 @@ function statusBadge(status) {
   const map = {
     'clean': 'badge-green',
     'approved': 'badge-green',
+    'to-be-closed': 'badge-red',
     'merged': 'badge-purple',
     'closed': 'badge-red',
     'changes-requested': 'badge-yellow',

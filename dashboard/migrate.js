@@ -6,6 +6,7 @@ const BASE_DIR = path.resolve(__dirname, '..');
 const TRACKING_DIR = path.join(BASE_DIR, 'tinyhumansai-openhuman');
 const APPROVED_DIR = path.join(BASE_DIR, 'to-be-approved');
 const FULLY_APPROVED_DIR = path.join(BASE_DIR, 'approved');
+const TO_BE_CLOSED_DIR = path.join(BASE_DIR, 'to-be-closed');
 const MERGED_DIR = path.join(BASE_DIR, 'already-merged');
 const LOGS_DIR = path.join(BASE_DIR, 'logs');
 
@@ -16,8 +17,9 @@ function migrate() {
   const trackingPrs = scanTrackingDir(TRACKING_DIR, 'tinyhumansai-openhuman');
   const approvedPrs = scanTrackingDir(APPROVED_DIR, 'to-be-approved');
   const fullyApprovedPrs = scanTrackingDir(FULLY_APPROVED_DIR, 'approved');
+  const toBeClosedPrs = scanTrackingDir(TO_BE_CLOSED_DIR, 'to-be-closed');
   const mergedPrs = scanTrackingDir(MERGED_DIR, 'already-merged');
-  const allPrs = [...trackingPrs, ...approvedPrs, ...fullyApprovedPrs, ...mergedPrs];
+  const allPrs = [...trackingPrs, ...approvedPrs, ...fullyApprovedPrs, ...toBeClosedPrs, ...mergedPrs];
 
   console.log(`[migrate] Found ${allPrs.length} PR tracking files`);
 

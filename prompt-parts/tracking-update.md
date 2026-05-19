@@ -43,5 +43,6 @@ For continuation reviews, **append** a new "Review <n>" section — don't overwr
 - 0 critical/major + all prior `graycyrus` changes resolved → `clean` → **move** to `/Users/cyrus/Desktop/automation/review-pr/to-be-approved/PR-__PR_NUMBER__.md`
 - Any critical/major → `changes-requested` → keep in `tinyhumansai-openhuman/`
 - BLOCKED (mismatch) → `blocked` → keep in `tinyhumansai-openhuman/`
+- Low-value/junk PR → `to-be-closed` → **move** to `/Users/cyrus/Desktop/automation/review-pr/to-be-closed/PR-__PR_NUMBER__.md`
 
 ---

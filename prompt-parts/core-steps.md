@@ -13,7 +13,7 @@ Note red flags: no linked issue on a feature, no test plan, title doesn't match 
 Read the entire diff carefully. Then quickly assess:
 
 **PR quality gate** — before doing a full review, determine:
-1. **Is this a real contribution?** Random/AI-generated/low-effort PRs with no clear purpose, copy-pasted boilerplate, or changes that don't make sense → post a polite COMMENT like "Thanks for contributing! However, this PR doesn't seem to add meaningful value to the project — [specific reason]. We'd love to see a more focused contribution." Then update the tracking file with status `skipped` and **stop the review here** — don't continue to the steps below.
+1. **Is this a real contribution?** Random/AI-generated/low-effort PRs with no clear purpose, copy-pasted boilerplate, or changes that don't make sense → post a polite COMMENT like "Thanks for contributing! However, this PR doesn't seem to add meaningful value to the project — [specific reason]. We'd love to see a more focused contribution." Then update the tracking file with status `to-be-closed`, move it to `/Users/cyrus/Desktop/automation/review-pr/to-be-closed/PR-__PR_NUMBER__.md`, and **stop the review here** — don't continue to the steps below.
 2. **What value does this add?** Bug fix, feature, refactor, docs, tests — note the value category. If the PR makes changes with no clear benefit or introduces unnecessary complexity, flag it.
 3. **Cross-cutting impact** — quickly check: does this PR change exported functions, shared types, state shapes, RPC methods, or event bus events? If yes, grep for callers/importers to verify nothing breaks. Flag unhandled breakage as `[critical]`.
 

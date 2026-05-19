@@ -231,7 +231,8 @@ router.post('/sync', (req, res) => {
     const trackingPrs = scanTrackingDir(TRACKING_DIR, 'tinyhumansai-openhuman');
     const approvedPrs = scanTrackingDir(APPROVED_DIR, 'to-be-approved');
     const fullyApprovedPrs = scanTrackingDir(FULLY_APPROVED_DIR, 'approved');
-    const allPrs = [...trackingPrs, ...approvedPrs, ...fullyApprovedPrs];
+    const toBeClosedPrs = scanTrackingDir(path.join(BASE_DIR, 'to-be-closed'), 'to-be-closed');
+    const allPrs = [...trackingPrs, ...approvedPrs, ...fullyApprovedPrs, ...toBeClosedPrs];
 
     for (const { pr, cycles } of allPrs) {
       if (!pr.id) continue;
