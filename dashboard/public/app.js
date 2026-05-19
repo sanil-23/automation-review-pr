@@ -68,7 +68,7 @@ function actionBadge(action) {
 function waitingFor(pr) {
   if (pr.status === 'merged') return '<span style="color:var(--purple)">Merged</span>';
   if (pr.status === 'closed') return '<span style="color:var(--red)">Closed</span>';
-  if (pr.is_running) return `<span class="running-indicator"><span class="running-dot"></span>Phase ${pr.running_phase || '?'}</span>`;
+  if (pr.is_running) return `<span class="running-indicator"><span class="running-dot"></span>Reviewing${pr.running_phase ? ' (Phase ' + pr.running_phase + ')' : ''}</span>`;
   if (pr.gh_is_draft) return '<span style="color:var(--text-muted)">Draft</span>';
   if (!pr.status || pr.status === 'pending') return '<span style="color:var(--purple)">Not reviewed</span>';
   if (pr.status === 'changes-requested') return 'Author response';
@@ -813,7 +813,7 @@ function renderPrDetail(pr, container) {
         <button class="btn" onclick="syncPr(${pr.id}, this)">Sync</button>
         ${pr.is_running
           ? `<button class="btn btn-danger" onclick="cancelReview(${pr.id})">Cancel Review</button>
-             <span class="running-indicator"><span class="running-dot"></span>Running Phase ${pr.running_phase || '?'}...</span>`
+             <span class="running-indicator"><span class="running-dot"></span>Reviewing${pr.running_phase ? ' (Phase ' + pr.running_phase + ')' : ''}...</span>`
           : `<button class="btn btn-primary" onclick="triggerReview(${pr.id}, false)">
               ${(pr.cycles || []).length > 0 ? 'Trigger Re-review' : 'Trigger Review'}
             </button>`
