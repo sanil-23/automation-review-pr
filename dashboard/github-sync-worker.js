@@ -9,7 +9,7 @@
 const { execSync } = require('child_process');
 
 const REPO = 'tinyhumansai/openhuman';
-const BATCH_SIZE = 30;
+const BATCH_SIZE = 20;
 const FIELDS = 'number,title,author,isDraft,reviewDecision,createdAt,updatedAt,headRefName,baseRefName,url,labels';
 
 function exec(cmd, timeout = 30000) {
