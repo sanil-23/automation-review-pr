@@ -8,8 +8,10 @@ import { Button } from '@/components/Button';
 import { api } from '@/lib/api';
 
 export default function DashboardPage() {
-  const { prs, stats, loading, error, load } = usePrStore();
+  const { prs, stats, loading, error, load, filters, setFilter } = usePrStore();
   const [busy, setBusy] = useState<null | 'sync' | 'discover'>(null);
+  const conflictCount = prs.filter((p) => p.mergeable === 'CONFLICTING').length;
+  const conflictFilterActive = filters.mergeable === 'CONFLICTING';
 
   useEffect(() => {
     load();
@@ -28,10 +30,26 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm text-[var(--color-text-muted)]">
-          {loading && prs.length === 0 ? 'Loading…' : `${prs.length} PR${prs.length === 1 ? '' : 's'}`}
-        </h2>
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm text-[var(--color-text-muted)]">
+            {loading && prs.length === 0 ? 'Loading…' : `${prs.length} PR${prs.length === 1 ? '' : 's'}`}
+          </h2>
+          {(conflictCount > 0 || conflictFilterActive) && (
+            <button
+              onClick={() => setFilter('mergeable', conflictFilterActive ? undefined : 'CONFLICTING')}
+              className={
+                'rounded border px-2 py-1 text-xs font-medium transition-colors ' +
+                (conflictFilterActive
+                  ? 'border-[var(--color-red)] bg-red-500/20 text-[var(--color-red)]'
+                  : 'border-red-500/30 bg-red-500/10 text-[var(--color-red)] hover:bg-red-500/20')
+              }
+              title={conflictFilterActive ? 'Clear conflict filter' : 'Show only conflicting PRs'}
+            >
+              {conflictFilterActive ? `Conflicts only (${conflictCount}) ×` : `${conflictCount} with conflicts`}
+            </button>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button onClick={handleSync} disabled={busy !== null} size="sm">
             {busy === 'sync' ? 'Syncing…' : 'Sync'}

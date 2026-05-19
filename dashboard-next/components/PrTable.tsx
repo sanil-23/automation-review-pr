@@ -52,6 +52,7 @@ export function PrTable({ prs }: { prs: Pr[] }) {
               className={clsx(
                 'border-t border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)]',
                 pr.is_running && 'bg-yellow-500/5',
+                pr.mergeable === 'CONFLICTING' && 'bg-red-500/5',
               )}
             >
               <td className="px-3 py-2">
@@ -69,6 +70,7 @@ export function PrTable({ prs }: { prs: Pr[] }) {
                   {pr.title || '(untitled)'}
                 </Link>
                 {pr.gh_is_draft ? <Badge tone="purple" className="ml-2">draft</Badge> : null}
+                {pr.mergeable === 'CONFLICTING' ? <Badge tone="red" className="ml-2">conflict</Badge> : null}
                 {pr.is_running ? <Badge tone="yellow" className="ml-2">reviewing…</Badge> : null}
               </td>
               <td className="px-3 py-2 text-[var(--color-text-muted)]">{pr.author || '-'}</td>
