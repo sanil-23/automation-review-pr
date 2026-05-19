@@ -505,9 +505,9 @@ async function triggerReview(prId, redirectToDetail) {
     const data = await res.json();
     if (res.ok) {
       btn.textContent = 'Running...';
-      // If on dashboard, redirect to detail page to see live logs
-      if (redirectToDetail !== false && !document.getElementById('pr-detail')) {
-        window.location.href = `/pr.html?pr=${prId}`;
+      // Refresh the table so it shows the running state
+      if (typeof fetchAndRender === 'function' && !document.getElementById('pr-detail')) {
+        setTimeout(() => fetchAndRender(), 1000);
       }
     } else {
       alert(data.error || 'Failed to start review');
