@@ -13,6 +13,26 @@ function ciBadge(pr: Pr) {
   return <Badge tone="green">{pr.ci_pass}/{pr.ci_total} pass</Badge>;
 }
 
+// Render assignees as compact chips, highlighting "us" (graycyrus) so it's
+// obvious at a glance which PRs we've already picked up.
+const YOU = 'graycyrus';
+
+function AssigneeChips({ assignees }: { assignees?: string }) {
+  const list = (assignees || '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (list.length === 0) return <span className="text-[var(--color-text-muted)] text-xs">—</span>;
+  return (
+    <span className="flex flex-wrap gap-1">
+      {list.map((name) =>
+        name.toLowerCase() === YOU ? (
+          <Badge key={name} tone="blue" title={`Assigned to ${name} (you)`}>you</Badge>
+        ) : (
+          <Badge key={name} tone="gray" title={`Assigned to ${name}`}>{name}</Badge>
+        ),
+      )}
+    </span>
+  );
+}
+
 function findingsBadge(pr: Pr) {
   const total = (pr.findings_critical ?? 0) + (pr.findings_major ?? 0) + (pr.findings_minor ?? 0);
   if (total === 0) return <span className="text-[var(--color-text-muted)]">-</span>;
@@ -37,6 +57,7 @@ export function PrTable({ prs }: { prs: Pr[] }) {
             <th className="px-3 py-2 font-medium">PR</th>
             <th className="px-3 py-2 font-medium">Title</th>
             <th className="px-3 py-2 font-medium">Author</th>
+            <th className="px-3 py-2 font-medium">Assigned</th>
             <th className="px-3 py-2 font-medium">Status</th>
             <th className="px-3 py-2 font-medium">CI</th>
             <th className="px-3 py-2 font-medium">Findings</th>
@@ -74,6 +95,7 @@ export function PrTable({ prs }: { prs: Pr[] }) {
                 {pr.is_running ? <Badge tone="yellow" className="ml-2">reviewing…</Badge> : null}
               </td>
               <td className="px-3 py-2 text-[var(--color-text-muted)]">{pr.author || '-'}</td>
+              <td className="px-3 py-2"><AssigneeChips assignees={pr.assignees} /></td>
               <td className="px-3 py-2"><Badge tone={statusTone(pr.status)}>{pr.status || '-'}</Badge></td>
               <td className="px-3 py-2">{ciBadge(pr)}</td>
               <td className="px-3 py-2">{findingsBadge(pr)}</td>

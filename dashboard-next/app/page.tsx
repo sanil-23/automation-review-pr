@@ -12,6 +12,8 @@ export default function DashboardPage() {
   const [busy, setBusy] = useState<null | 'sync' | 'discover'>(null);
   const conflictCount = prs.filter((p) => p.mergeable === 'CONFLICTING').length;
   const conflictFilterActive = filters.mergeable === 'CONFLICTING';
+  const mineCount = prs.filter((p) => (p.assignees || '').toLowerCase().includes('graycyrus')).length;
+  const mineFilterActive = filters.assignee === 'graycyrus';
 
   useEffect(() => {
     load();
@@ -47,6 +49,20 @@ export default function DashboardPage() {
               title={conflictFilterActive ? 'Clear conflict filter' : 'Show only conflicting PRs'}
             >
               {conflictFilterActive ? `Conflicts only (${conflictCount}) ×` : `${conflictCount} with conflicts`}
+            </button>
+          )}
+          {(mineCount > 0 || mineFilterActive) && (
+            <button
+              onClick={() => setFilter('assignee', mineFilterActive ? undefined : 'graycyrus')}
+              className={
+                'rounded border px-2 py-1 text-xs font-medium transition-colors ' +
+                (mineFilterActive
+                  ? 'border-[var(--color-accent)] bg-blue-500/20 text-[var(--color-accent)]'
+                  : 'border-blue-500/30 bg-blue-500/10 text-[var(--color-accent)] hover:bg-blue-500/20')
+              }
+              title={mineFilterActive ? 'Clear mine filter' : 'Show only PRs assigned to me'}
+            >
+              {mineFilterActive ? `Mine only (${mineCount}) ×` : `${mineCount} assigned to me`}
             </button>
           )}
         </div>
