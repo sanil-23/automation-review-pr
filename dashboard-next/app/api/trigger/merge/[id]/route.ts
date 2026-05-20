@@ -8,6 +8,54 @@ export const dynamic = 'force-dynamic';
 
 const REPO = 'tinyhumansai/openhuman';
 
+// Single-quote escape for shell. 'foo' → 'foo'; 'it\'s' → 'it'\''s'.
+const sh = (s: string) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+
+// Build the squash commit subject + body for a PR. Keeps co-author trailers
+// for every distinct commit author on the PR and appends one for the gh
+// user actually performing the merge ("our github creds") so the merger
+// gets explicit credit in the trailer.
+function buildSquashMessage(prId: number) {
+  const view: any = JSON.parse(
+    execSync(`gh pr view ${prId} --repo ${REPO} --json title,body,commits`, {
+      encoding: 'utf-8',
+      timeout: 15000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }),
+  );
+
+  const subject = view.title || `PR #${prId}`;
+  const description = (view.body || '').trim();
+
+  const coAuthors = new Map<string, string>();
+  for (const commit of view.commits || []) {
+    for (const a of commit.authors || []) {
+      if (!a) continue;
+      const name = a.name || a.login;
+      // Prefer the noreply form if no real email is exposed.
+      const email = a.email || (a.login ? `${a.login}@users.noreply.github.com` : null);
+      if (!name || !email) continue;
+      coAuthors.set(email.toLowerCase(), `Co-authored-by: ${name} <${email}>`);
+    }
+  }
+
+  try {
+    const me: any = JSON.parse(
+      execSync(`gh api user`, { encoding: 'utf-8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }),
+    );
+    const myName = me.name || me.login;
+    const myEmail = `${me.id}+${me.login}@users.noreply.github.com`;
+    coAuthors.set(myEmail.toLowerCase(), `Co-authored-by: ${myName} <${myEmail}>`);
+  } catch {
+    // gh api user can fail under rare auth states — co-author addition is
+    // best-effort, the merge itself should still proceed.
+  }
+
+  const trailers = [...coAuthors.values()].join('\n');
+  const body = [description, trailers].filter(Boolean).join('\n\n');
+  return { subject, body };
+}
+
 // POST /api/trigger/merge/[id]
 // Body: { force?: boolean }
 //   force=true skips the local eligibility check and passes --admin to
@@ -37,9 +85,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const flags = ['--squash', '--delete-branch'];
   if (force) flags.push('--admin');
 
+  // Build the squash message ourselves so we can append a Co-authored-by
+  // trailer for the gh user performing the merge.
+  let messageFlags = '';
+  try {
+    const { subject, body } = buildSquashMessage(prId);
+    messageFlags = `--subject ${sh(subject)} --body ${sh(body)}`;
+  } catch (err: any) {
+    console.warn(`[trigger] Could not build custom squash message for PR #${prId}: ${err.message}. Falling back to gh defaults.`);
+  }
+
   try {
     const out = execSync(
-      `gh pr merge ${prId} --repo ${REPO} ${flags.join(' ')}`,
+      `gh pr merge ${prId} --repo ${REPO} ${flags.join(' ')} ${messageFlags}`.trim(),
       { encoding: 'utf-8', timeout: 60000, stdio: ['pipe', 'pipe', 'pipe'] },
     );
     console.log(`[trigger] PR #${prId} merged${force ? ' (force/admin)' : ''} successfully`);
