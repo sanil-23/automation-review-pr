@@ -36,12 +36,23 @@ export default function DashboardPage() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rateRef = useRef(POLL_SLOW);
 
+  const initFiltersFromUrl = usePrStore((s) => s.initFiltersFromUrl);
+
   useEffect(() => {
+    initFiltersFromUrl();
     loadMe();
     load();
     intervalRef.current = setInterval(load, POLL_SLOW);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [load, loadMe]);
+
+    // Sync filters when user navigates back/forward
+    const onPopState = () => { initFiltersFromUrl(); load(); };
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      window.removeEventListener('popstate', onPopState);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Switch polling rate when a review is active
   useEffect(() => {
