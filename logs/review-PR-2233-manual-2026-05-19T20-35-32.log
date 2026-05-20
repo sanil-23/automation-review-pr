@@ -1,0 +1,63 @@
+=============================================
+  PR Review — #2233
+=============================================
+REVIEW_STARTED=2026-05-19T20:35:32Z
+
+--- Pre-check: Analyzing PR #2233 ---
+[Pre-check] Fetching PR metadata...
+  Title: docs: fix README spelling inconsistency
+  Author: navneet-singh2907
+  Branch: docs/fix-readme-spelling -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #2171
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (1 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:35:34Z ---
+PR #2233: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+
+--- Claude review finished (39s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 39s
+  Total: 41s
+
+REVIEW_ENDED=2026-05-19T20:36:13Z
+
+[Git] Committing and pushing review outputs...
+[main 38aebbb] Review PR #2233
+ 6 files changed, 29 insertions(+), 149 deletions(-)
+ create mode 100644 to-be-approved/PR-2233.md
+ delete mode 100644 to-be-approved/PR-2235.md
+ delete mode 100644 to-be-approved/PR-2236.md
+ delete mode 100644 to-be-approved/PR-2237.md
+ delete mode 100644 to-be-approved/PR-2238.md
+ delete mode 100644 to-be-approved/PR-2239.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   238bfef..38aebbb  main -> main
+
+=== Done ===

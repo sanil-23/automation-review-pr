@@ -1,0 +1,24 @@
+=== Reviewing PR #2224 ===
+REVIEW_STARTED=2026-05-19T16:21:33Z
+
+[Phase A] Gathering intelligence...
+Phase A intelligence gathering complete. Context written to `/Users/cyrus/Desktop/automation/review-pr/tinyhumansai-openhuman/.context-PR-2224.md`.
+
+**Summary**: PR #2224 is a well-scoped Sentry bug fix by @YellowSnnowmann. It bounds cached resume transcripts by `max_history_messages` at both entry points to prevent 400 errors from oversized context. 4 Rust files, +130/-7, 3 commits, 3 unit tests. CodeRabbit approved with no findings. No prior reviews from graycyrus. No dependency/export/signature changes. Clean PR — main review points will be around the helper logic correctness and minor commit message prefix inconsistency (PR title says `fix:`, first commit says `feat:`).
+
+[Phase B] Deep review + posting...
+PR #2224: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+REVIEW_ENDED=2026-05-19T16:26:20Z
+
+[Git] Committing and pushing review outputs...
+[main 5ef014f] Review PR #2224
+ 2 files changed, 279 insertions(+)
+ create mode 100644 tinyhumansai-openhuman/.context-PR-2210.md
+ create mode 100644 to-be-approved/PR-2224.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   a42c728..5ef014f  main -> main
+
+=== Done ===

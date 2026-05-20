@@ -1,0 +1,59 @@
+=============================================
+  PR Review — #2100
+=============================================
+REVIEW_STARTED=2026-05-19T20:23:14Z
+
+--- Pre-check: Analyzing PR #2100 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(agent): guard agent prompts against model max-context limit (#2074)
+  Author: CodeGhost21
+  Branch: cursor/a01-2074-agent-token-budget -> main
+  State: OPEN | Draft: false
+  Labels: agent, working, bug
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #2074
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (1 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:23:16Z ---
+PR #2100: continuation, 0 critical, 0 major, 0 minor, 0 threads resolved, 3 still open → no new commits, prior feedback unaddressed
+
+--- Claude review finished (86s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 86s
+  Total: 88s
+
+REVIEW_ENDED=2026-05-19T20:24:42Z
+
+[Git] Committing and pushing review outputs...
+[main 3c65414] Review PR #2100
+ 2 files changed, 79 insertions(+)
+ create mode 100644 tinyhumansai-openhuman/PR-2099.md
+ create mode 100644 tinyhumansai-openhuman/PR-2100.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   a9290bb..3c65414  main -> main
+
+=== Done ===

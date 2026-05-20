@@ -1,0 +1,37 @@
+=============================================
+  PR Review — #2108
+=============================================
+REVIEW_STARTED=2026-05-19T19:43:24Z
+
+--- Pre-check: Analyzing PR #2108 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(security): fail closed in pairing.rs::is_authenticated when token is unset (#1919)
+  Author: CodeGhost21
+  Branch: cursor/a01-1919-pairing-fail-closed -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #1919
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (2 review(s))
+
+--- Pre-check summary (3s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 181 lines, 918 words
+
+--- Claude review started at 2026-05-19T19:43:27Z ---
+You've hit your limit · resets 1:30am (Asia/Calcutta)

@@ -1,0 +1,62 @@
+=============================================
+  PR Review — #2185
+=============================================
+REVIEW_STARTED=2026-05-19T20:35:59Z
+
+--- Pre-check: Analyzing PR #2185 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(ui): BottomTabBar no longer blocks Settings SaveBar clicks
+  Author: xiekailian
+  Branch: fix/bottom-tab-bar-pointer-events -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: 
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (1 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:36:01Z ---
+PR #2185: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+
+--- Claude review finished (71s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 71s
+  Total: 73s
+
+REVIEW_ENDED=2026-05-19T20:37:12Z
+
+[Git] Committing and pushing review outputs...
+[main ad780e3] Review PR #2185
+ 3 files changed, 61 insertions(+), 1 deletion(-)
+ create mode 100644 to-be-approved/PR-2187.md
+ create mode 100644 to-be-approved/PR-2234.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+There is no candidate for rebasing against among the refs that you just fetched.
+Generally this means that you provided a wildcard refspec which had no
+matches on the remote end.
+[Git] Pull failed, continuing anyway
+To github.com:graycyrus/automation-review-pr.git
+   d487bdc..ad780e3  main -> main
+
+=== Done ===

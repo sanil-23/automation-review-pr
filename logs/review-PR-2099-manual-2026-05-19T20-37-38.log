@@ -1,0 +1,59 @@
+=============================================
+  PR Review — #2099
+=============================================
+REVIEW_STARTED=2026-05-19T20:37:38Z
+
+--- Pre-check: Analyzing PR #2099 ---
+[Pre-check] Fetching PR metadata...
+  Title: feat(human): show subagent companion mascots
+  Author: Zavianx
+  Branch: codex/OH-1140-sub-mascots -> main
+  State: OPEN | Draft: false
+  Labels: feature, working
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Continuation review (1 prior cycles, last commit: 4eacfe6fb8a01739e287b58ee3bbd85fa7686d6b)
+[Pre-check] Linked issues: Closes #1140
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (2 review(s))
+
+--- Pre-check summary (3s) ---
+  Continuation:  true
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, continuation, smart-re-review, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 235 lines, 1316 words
+
+--- Claude review started at 2026-05-19T20:37:41Z ---
+PR #2099: continuation, 0 critical, 1 major (carry-forward), 0 minor, 0 threads resolved, 1 still open → no new review posted (no commits since last review)
+
+--- Claude review finished (58s) ---
+
+--- Timing ---
+  Pre-checks: 3s
+  Claude review: 58s
+  Total: 61s
+
+REVIEW_ENDED=2026-05-19T20:38:39Z
+
+[Git] Committing and pushing review outputs...
+[main a879942] Review PR #2099
+ 1 file changed, 19 insertions(+)
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+error: cannot rebase: You have unstaged changes.
+error: Please commit or stash them.
+[Git] Pull failed, continuing anyway
+The stash entry is kept in case you need it again.
+Everything up-to-date
+
+=== Done ===

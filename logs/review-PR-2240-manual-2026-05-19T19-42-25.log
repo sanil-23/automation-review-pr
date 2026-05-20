@@ -1,0 +1,37 @@
+=============================================
+  PR Review — #2240
+=============================================
+REVIEW_STARTED=2026-05-19T19:42:25Z
+
+--- Pre-check: Analyzing PR #2240 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(telegram): stop duplicate operator-approval prompts for allowed users (#1948)
+  Author: sanil-23
+  Branch: fix/1948-telegram-duplicate-approval -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #1948
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] No CodeRabbit review
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    false
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, review-post, tracking-update, footer
+  Prompt size: 170 lines, 866 words
+
+--- Claude review started at 2026-05-19T19:42:27Z ---
+You've hit your limit · resets 1:30am (Asia/Calcutta)

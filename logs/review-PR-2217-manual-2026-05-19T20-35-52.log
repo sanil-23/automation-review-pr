@@ -1,0 +1,57 @@
+=============================================
+  PR Review — #2217
+=============================================
+REVIEW_STARTED=2026-05-19T20:35:52Z
+
+--- Pre-check: Analyzing PR #2217 ---
+[Pre-check] Fetching PR metadata...
+  Title: feat(memory-tree): add ingest_document tool for tree write path
+  Author: xinzhuwang-wxz
+  Branch: feat/ingest-document-tool -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Continuation review (1 prior cycles, last commit: 194ed86dbdae6f261d4ff112856480dd0fbf548a)
+[Pre-check] No linked issues found
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (1 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  true
+  Linked issues: false
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, continuation, smart-re-review, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 219 lines, 1247 words
+
+--- Claude review started at 2026-05-19T20:35:54Z ---
+PR #2217: continuation, 1 major, 1 minor (unchanged), 0 threads resolved, 2 still open → no new review posted (no new commits, prior REQUEST_CHANGES stands)
+
+--- Claude review finished (54s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 54s
+  Total: 56s
+
+REVIEW_ENDED=2026-05-19T20:36:48Z
+
+[Git] Committing and pushing review outputs...
+[main 280e877] Review PR #2217
+ 2 files changed, 22 insertions(+), 1 deletion(-)
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   38aebbb..280e877  main -> main
+
+=== Done ===

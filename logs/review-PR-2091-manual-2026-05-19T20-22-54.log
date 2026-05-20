@@ -1,0 +1,58 @@
+=============================================
+  PR Review — #2091
+=============================================
+REVIEW_STARTED=2026-05-19T20:22:54Z
+
+--- Pre-check: Analyzing PR #2091 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(security): encrypt channel secrets in config.toml on save, decrypt on load
+  Author: kunci115
+  Branch: fix/1900-encrypt-config-secrets -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #1900
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (4 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:22:56Z ---
+PR #2091: fresh, 0 critical, 1 major, 0 minor, 0 threads resolved, 0 still open → REQUEST_CHANGES
+
+--- Claude review finished (155s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 155s
+  Total: 157s
+
+REVIEW_ENDED=2026-05-19T20:25:31Z
+
+[Git] Committing and pushing review outputs...
+[main 10370f0] Review PR #2091
+ 1 file changed, 30 insertions(+)
+ create mode 100644 tinyhumansai-openhuman/PR-2091.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   f4c3736..10370f0  main -> main
+
+=== Done ===

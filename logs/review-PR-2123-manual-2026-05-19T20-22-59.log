@@ -1,0 +1,58 @@
+=============================================
+  PR Review — #2123
+=============================================
+REVIEW_STARTED=2026-05-19T20:22:59Z
+
+--- Pre-check: Analyzing PR #2123 ---
+[Pre-check] Fetching PR metadata...
+  Title: feat(agent): add local agent experience learning loop
+  Author: YOMXXX
+  Branch: feat/hermes-agent-experience-layer -> main
+  State: OPEN | Draft: false
+  Labels: working
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: 
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (2 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:23:01Z ---
+PR #2123: fresh, 0 critical, 1 major, 1 minor, 0 threads resolved, 0 still open → REQUEST_CHANGES
+
+--- Claude review finished (189s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 189s
+  Total: 191s
+
+REVIEW_ENDED=2026-05-19T20:26:10Z
+
+[Git] Committing and pushing review outputs...
+[main 238bfef] Review PR #2123
+ 1 file changed, 31 insertions(+)
+ create mode 100644 tinyhumansai-openhuman/PR-2123.md
+Current branch main is up to date.
+
+=== Done ===
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+To github.com:graycyrus/automation-review-pr.git
+   05ea6cf..238bfef  main -> main

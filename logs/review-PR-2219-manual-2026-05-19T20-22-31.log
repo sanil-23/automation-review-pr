@@ -1,0 +1,64 @@
+=============================================
+  PR Review — #2219
+=============================================
+REVIEW_STARTED=2026-05-19T20:22:31Z
+
+--- Pre-check: Analyzing PR #2219 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(memory-tree): rename window_days → time_window_days for query_global
+  Author: xinzhuwang-wxz
+  Branch: fix/query-global-param-name -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] No linked issues found
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (2 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: false
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 171 lines, 1010 words
+
+--- Claude review started at 2026-05-19T20:22:33Z ---
+PR #2219: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+
+--- Claude review finished (46s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 46s
+  Total: 48s
+
+REVIEW_ENDED=2026-05-19T20:23:19Z
+
+[Git] Committing and pushing review outputs...
+[main 12a1f2e] Review PR #2219
+ 4 files changed, 118 insertions(+)
+ create mode 100644 to-be-approved/PR-2103.md
+ create mode 100644 to-be-approved/PR-2196.md
+ create mode 100644 to-be-approved/PR-2219.md
+ create mode 100644 to-be-approved/PR-2240.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+error: cannot rebase: You have unstaged changes.
+error: Please commit or stash them.
+[Git] Pull failed, continuing anyway
+The stash entry is kept in case you need it again.
+To github.com:graycyrus/automation-review-pr.git
+   e495082..12a1f2e  main -> main
+
+=== Done ===

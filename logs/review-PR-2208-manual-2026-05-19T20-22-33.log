@@ -1,0 +1,62 @@
+=============================================
+  PR Review — #2208
+=============================================
+REVIEW_STARTED=2026-05-19T20:22:33Z
+
+--- Pre-check: Analyzing PR #2208 ---
+[Pre-check] Fetching PR metadata...
+  Title: feat(auth): add local offline login
+  Author: shadowdoggie
+  Branch: feat/local-offline-login -> main
+  State: OPEN | Draft: false
+  Labels: feature, working
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: 
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (2 review(s))
+
+--- Pre-check summary (3s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:22:36Z ---
+PR #2208: fresh, 0 critical, 1 major, 1 minor, 0 threads resolved, 0 still open → REQUEST_CHANGES
+
+--- Claude review finished (188s) ---
+
+--- Timing ---
+  Pre-checks: 3s
+  Claude review: 188s
+  Total: 191s
+
+REVIEW_ENDED=2026-05-19T20:25:44Z
+
+[Git] Committing and pushing review outputs...
+[main e2a8afc] Review PR #2208
+ 2 files changed, 63 insertions(+)
+ create mode 100644 tinyhumansai-openhuman/PR-2092.md
+ create mode 100644 tinyhumansai-openhuman/PR-2208.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+error: cannot rebase: You have unstaged changes.
+error: Please commit or stash them.
+[Git] Pull failed, continuing anyway
+The stash entry is kept in case you need it again.
+To github.com:graycyrus/automation-review-pr.git
+   66d8447..e2a8afc  main -> main
+
+=== Done ===

@@ -1,0 +1,62 @@
+=============================================
+  PR Review — #2223
+=============================================
+REVIEW_STARTED=2026-05-19T20:35:47Z
+
+--- Pre-check: Analyzing PR #2223 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(providers): fall back to reasoning-v1 for unrecognized default_model
+  Author: M3gA-Mind
+  Branch: fix/invalid-model-name-fallback -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #2202
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (3 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:35:49Z ---
+PR #2223: fresh, 0 critical, 1 major, 0 minor, 0 threads resolved, 0 still open → REQUEST_CHANGES
+
+--- Claude review finished (184s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 184s
+  Total: 186s
+
+REVIEW_ENDED=2026-05-19T20:38:53Z
+
+[Git] Committing and pushing review outputs...
+[main f7c5148] Review PR #2223
+ 2 files changed, 60 insertions(+)
+ create mode 100644 tinyhumansai-openhuman/PR-2112.md
+ create mode 100644 tinyhumansai-openhuman/PR-2223.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+error: cannot rebase: You have unstaged changes.
+error: Please commit or stash them.
+[Git] Pull failed, continuing anyway
+The stash entry is kept in case you need it again.
+To github.com:graycyrus/automation-review-pr.git
+   2bc39ce..f7c5148  main -> main
+
+=== Done ===

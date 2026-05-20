@@ -1,0 +1,59 @@
+=============================================
+  PR Review — #2108
+=============================================
+REVIEW_STARTED=2026-05-19T20:37:25Z
+
+--- Pre-check: Analyzing PR #2108 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(security): fail closed in pairing.rs::is_authenticated when token is unset (#1919)
+  Author: CodeGhost21
+  Branch: cursor/a01-1919-pairing-fail-closed -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #1919
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (2 review(s))
+
+--- Pre-check summary (3s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:37:28Z ---
+PR #2108: fresh, 0 critical, 0 major, 2 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+
+--- Claude review finished (117s) ---
+
+--- Timing ---
+  Pre-checks: 3s
+  Claude review: 117s
+  Total: 120s
+
+REVIEW_ENDED=2026-05-19T20:39:25Z
+
+[Git] Committing and pushing review outputs...
+[main 9bf5740] Review PR #2108
+ 2 files changed, 62 insertions(+)
+ create mode 100644 to-be-approved/PR-2108.md
+ create mode 100644 to-be-approved/PR-2181.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   875207d..9bf5740  main -> main
+
+=== Done ===

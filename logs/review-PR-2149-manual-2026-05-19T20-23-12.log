@@ -1,0 +1,61 @@
+=============================================
+  PR Review — #2149
+=============================================
+REVIEW_STARTED=2026-05-19T20:23:12Z
+
+--- Pre-check: Analyzing PR #2149 ---
+[Pre-check] Fetching PR metadata...
+  Title: feat(approval): gate external-effect tool calls until user approves (#1339)
+  Author: oxoxDev
+  Branch: feat/1339-triggers-approval-gate -> main
+  State: OPEN | Draft: false
+  Labels: working
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #1339
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (13 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:23:14Z ---
+PR #2149: continuation, 0 critical, 0 major, 2 minor, 0 threads resolved, 2 still open (non-blocking) → COMMENT previous changes addressed, moved to to-be-approved
+
+--- Claude review finished (100s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 100s
+  Total: 102s
+
+REVIEW_ENDED=2026-05-19T20:24:54Z
+
+[Git] Committing and pushing review outputs...
+[main 8be1590] Review PR #2149
+ 2 files changed, 79 insertions(+)
+ create mode 100644 to-be-approved/PR-2149.md
+ create mode 100644 to-be-approved/PR-2211.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+fatal: Cannot rebase onto multiple branches.
+[Git] Pull failed, continuing anyway
+The stash entry is kept in case you need it again.
+To github.com:graycyrus/automation-review-pr.git
+   3c65414..8be1590  main -> main
+
+=== Done ===

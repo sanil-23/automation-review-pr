@@ -1,0 +1,58 @@
+=============================================
+  PR Review — #2239
+=============================================
+REVIEW_STARTED=2026-05-19T19:42:41Z
+
+--- Pre-check: Analyzing PR #2239 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(observability): classify provider config-rejection 4xx as expected user-state (#2079)
+  Author: sanil-23
+  Branch: fix/2079-provider-config-rejection-classifier -> main
+  State: OPEN | Draft: false
+  Labels: working
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #2079
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (2 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 181 lines, 918 words
+
+--- Claude review started at 2026-05-19T19:42:43Z ---
+PR #2239: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+
+--- Claude review finished (110s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 110s
+  Total: 112s
+
+REVIEW_ENDED=2026-05-19T19:44:33Z
+
+[Git] Committing and pushing review outputs...
+[main 1d2309c] Review PR #2239
+ 1 file changed, 30 insertions(+)
+ create mode 100644 to-be-approved/PR-2239.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   466d993..1d2309c  main -> main
+
+=== Done ===

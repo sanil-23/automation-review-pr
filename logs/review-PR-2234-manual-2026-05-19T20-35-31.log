@@ -1,0 +1,148 @@
+=============================================
+  PR Review — #2234
+=============================================
+REVIEW_STARTED=2026-05-19T20:35:31Z
+
+--- Pre-check: Analyzing PR #2234 ---
+[Pre-check] Fetching PR metadata...
+  Title: feat(agent): cap runtime subagent spawn depth at MAX_SPAWN_DEPTH=3
+  Author: srikaanthh
+  Branch: feat/agent-spawn-depth-gate -> main
+  State: OPEN | Draft: false
+  Labels: working
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: 
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (3 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:35:33Z ---
+PR #2234: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+
+--- Claude review finished (102s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 102s
+  Total: 104s
+
+REVIEW_ENDED=2026-05-19T20:37:15Z
+
+[Git] Committing and pushing review outputs...
+On branch main
+Your branch is ahead of 'origin/main' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   status.json
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	already-merged/PR-2011.md
+	already-merged/PR-2025.md
+	already-merged/PR-2212.md
+	already-merged/PR-2237.md
+	already-merged/PR-2238.md
+	already-merged/PR-2239.md
+	approved/
+	logs/approve-PR-2212-2026-05-19T19-41-36.log
+	logs/approve-PR-2235-2026-05-19T20-32-45.log
+	logs/approve-PR-2236-2026-05-19T20-32-21.log
+	logs/approve-PR-2237-2026-05-19T20-30-29.log
+	logs/approve-PR-2237-2026-05-19T20-30-58.log
+	logs/approve-PR-2238-2026-05-19T20-29-47.log
+	logs/approve-PR-2239-2026-05-19T20-27-49.log
+	logs/merge-PR-2212-2026-05-19T19-41-50.log
+	logs/merge-PR-2237-2026-05-19T20-31-12.log
+	logs/merge-PR-2238-2026-05-19T20-30-00.log
+	logs/merge-PR-2239-2026-05-19T20-28-59.log
+	logs/review-PR-2083-manual-2026-05-19T20-22-52.log
+	logs/review-PR-2085-manual-2026-05-19T16-22-32.log
+	logs/review-PR-2085-manual-2026-05-19T19-43-16.log
+	logs/review-PR-2087-manual-2026-05-19T20-22-53.log
+	logs/review-PR-2089-manual-2026-05-19T19-43-26.log
+	logs/review-PR-2089-manual-2026-05-19T20-23-16.log
+	logs/review-PR-2090-manual-2026-05-19T16-23-55.log
+	logs/review-PR-2090-manual-2026-05-19T19-43-15.log
+	logs/review-PR-2091-manual-2026-05-19T20-22-54.log
+	logs/review-PR-2092-manual-2026-05-19T20-23-17.log
+	logs/review-PR-2098-manual-2026-05-19T19-43-26.log
+	logs/review-PR-2099-manual-2026-05-19T20-22-55.log
+	logs/review-PR-2100-manual-2026-05-19T19-43-25.log
+	logs/review-PR-2100-manual-2026-05-19T20-23-14.log
+	logs/review-PR-2103-manual-2026-05-19T19-43-14.log
+	logs/review-PR-2107-manual-2026-05-19T19-43-14.log
+	logs/review-PR-2108-manual-2026-05-19T19-43-24.log
+	logs/review-PR-2114-manual-2026-05-19T19-42-56.log
+	logs/review-PR-2116-manual-2026-05-19T19-42-56.log
+	logs/review-PR-2123-manual-2026-05-19T20-22-59.log
+	logs/review-PR-2147-manual-2026-05-19T20-23-12.log
+	logs/review-PR-2149-manual-2026-05-19T19-42-55.log
+	logs/review-PR-2149-manual-2026-05-19T20-23-12.log
+	logs/review-PR-2177-manual-2026-05-19T20-36-03.log
+	logs/review-PR-2178-manual-2026-05-19T20-36-06.log
+	logs/review-PR-2180-manual-2026-05-19T19-43-12.log
+	logs/review-PR-2180-manual-2026-05-19T20-36-01.log
+	logs/review-PR-2181-manual-2026-05-19T20-36-00.log
+	logs/review-PR-2185-manual-2026-05-19T20-35-59.log
+	logs/review-PR-2187-manual-2026-05-19T20-35-58.log
+	logs/review-PR-2188-manual-2026-05-19T19-42-55.log
+	logs/review-PR-2190-manual-2026-05-19T19-43-12.log
+	logs/review-PR-2191-manual-2026-05-19T20-35-57.log
+	logs/review-PR-2196-manual-2026-05-19T19-42-54.log
+	logs/review-PR-2198-manual-2026-05-19T20-22-34.log
+	logs/review-PR-2200-manual-2026-05-19T19-43-10.log
+	logs/review-PR-2201-manual-2026-05-19T19-43-10.log
+	logs/review-PR-2208-manual-2026-05-19T20-22-33.log
+	logs/review-PR-2208-manual-2026-05-19T20-35-55.log
+	logs/review-PR-2209-manual-2026-05-19T20-23-09.log
+	logs/review-PR-2210-manual-2026-05-19T16-21-35.log
+	logs/review-PR-2210-manual-2026-05-19T20-35-53.log
+	logs/review-PR-2211-manual-2026-05-19T20-23-09.log
+	logs/review-PR-2212-manual-2026-05-19T19-35-13.log
+	logs/review-PR-2217-manual-2026-05-19T20-22-33.log
+	logs/review-PR-2217-manual-2026-05-19T20-35-52.log
+	logs/review-PR-2218-manual-2026-05-19T20-35-37.log
+	logs/review-PR-2219-manual-2026-05-19T20-22-31.log
+	logs/review-PR-2223-manual-2026-05-19T20-35-47.log
+	logs/review-PR-2224-manual-2026-05-19T16-21-33.log
+	logs/review-PR-2229-manual-2026-05-19T20-35-33.log
+	logs/review-PR-2233-manual-2026-05-19T20-20-49.log
+	logs/review-PR-2233-manual-2026-05-19T20-35-32.log
+	logs/review-PR-2234-manual-2026-05-19T20-35-31.log
+	logs/review-PR-2235-manual-2026-05-19T19-42-31.log
+	logs/review-PR-2236-manual-2026-05-19T19-42-42.log
+	logs/review-PR-2237-manual-2026-05-19T19-42-30.log
+	logs/review-PR-2238-manual-2026-05-19T19-42-30.log
+	logs/review-PR-2239-manual-2026-05-19T19-42-41.log
+	logs/review-PR-2240-manual-2026-05-19T19-42-25.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
+Nothing to commit
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+fatal: Cannot rebase onto multiple branches.
+[Git] Pull failed, continuing anyway
+The stash entry is kept in case you need it again.
+Everything up-to-date
+
+=== Done ===

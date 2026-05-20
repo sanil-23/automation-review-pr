@@ -1,0 +1,57 @@
+=============================================
+  PR Review — #2208
+=============================================
+REVIEW_STARTED=2026-05-19T20:35:55Z
+
+--- Pre-check: Analyzing PR #2208 ---
+[Pre-check] Fetching PR metadata...
+  Title: feat(auth): add local offline login
+  Author: shadowdoggie
+  Branch: feat/local-offline-login -> main
+  State: OPEN | Draft: false
+  Labels: feature, working
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Continuation review (1 prior cycles, last commit: d7892d94bcb3ee7bd48411251bfb715531998429)
+[Pre-check] Linked issues: 
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (2 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  true
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, continuation, smart-re-review, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 235 lines, 1316 words
+
+--- Claude review started at 2026-05-19T20:35:57Z ---
+PR #2208: continuation, no new commits (d7892d94 unchanged), 1 major + 1 minor still open, 0 threads resolved, 9 still open → no review posted (prior REQUEST_CHANGES stands)
+
+--- Claude review finished (60s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 60s
+  Total: 62s
+
+REVIEW_ENDED=2026-05-19T20:36:57Z
+
+[Git] Committing and pushing review outputs...
+[main 4d1673a] Review PR #2208
+ 1 file changed, 22 insertions(+)
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   280e877..4d1673a  main -> main
+
+=== Done ===

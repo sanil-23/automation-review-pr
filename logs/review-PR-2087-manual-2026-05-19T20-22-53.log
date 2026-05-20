@@ -1,0 +1,58 @@
+=============================================
+  PR Review — #2087
+=============================================
+REVIEW_STARTED=2026-05-19T20:22:53Z
+
+--- Pre-check: Analyzing PR #2087 ---
+[Pre-check] Fetching PR metadata...
+  Title: feat(migration): OpenClaw import surface + unblock unified-core Apply
+  Author: obchain
+  Branch: feat/1440-migration-panel -> main
+  State: OPEN | Draft: false
+  Labels: feature, working
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] No linked issues found
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (17 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: false
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 171 lines, 1010 words
+
+--- Claude review started at 2026-05-19T20:22:55Z ---
+PR #2087: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+
+--- Claude review finished (187s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 187s
+  Total: 189s
+
+REVIEW_ENDED=2026-05-19T20:26:02Z
+
+[Git] Committing and pushing review outputs...
+[main 05ea6cf] Review PR #2087
+ 1 file changed, 29 insertions(+)
+ create mode 100644 to-be-approved/PR-2087.md
+Current branch main is up to date.
+
+=== Done ===
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+To github.com:graycyrus/automation-review-pr.git
+   e2a8afc..05ea6cf  main -> main

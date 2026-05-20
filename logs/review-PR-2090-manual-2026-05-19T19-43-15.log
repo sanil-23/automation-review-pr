@@ -1,0 +1,60 @@
+=============================================
+  PR Review — #2090
+=============================================
+REVIEW_STARTED=2026-05-19T19:43:15Z
+
+--- Pre-check: Analyzing PR #2090 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(observability): classify Kimi access_terminated 403 as expected provider user-state
+  Author: YellowSnnowmann
+  Branch: fix/sentry-kimi-access-terminated-403-classification -> main
+  State: OPEN | Draft: false
+  Labels: working
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: 
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (2 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 181 lines, 918 words
+
+--- Claude review started at 2026-05-19T19:43:17Z ---
+PR #2090: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+
+--- Claude review finished (68s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 68s
+  Total: 70s
+
+REVIEW_ENDED=2026-05-19T19:44:25Z
+
+[Git] Committing and pushing review outputs...
+[main 466d993] Review PR #2090
+ 2 files changed, 59 insertions(+)
+ create mode 100644 to-be-approved/PR-2190.md
+ create mode 100644 to-be-approved/PR-2200.md
+error: cannot pull with rebase: You have unstaged changes.
+error: Please commit or stash them.
+[Git] Pull failed, continuing anyway
+The stash entry is kept in case you need it again.
+To github.com:graycyrus/automation-review-pr.git
+   3e7a087..466d993  main -> main
+
+=== Done ===

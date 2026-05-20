@@ -1,0 +1,36 @@
+=============================================
+  PR Review — #2233
+=============================================
+REVIEW_STARTED=2026-05-19T20:20:49Z
+
+--- Pre-check: Analyzing PR #2233 ---
+[Pre-check] Fetching PR metadata...
+  Title: docs: fix README spelling inconsistency
+  Author: navneet-singh2907
+  Branch: docs/fix-readme-spelling -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #2171
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (1 review(s))
+
+--- Pre-check summary (3s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:20:52Z ---

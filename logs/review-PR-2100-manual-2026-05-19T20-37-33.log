@@ -1,0 +1,59 @@
+=============================================
+  PR Review — #2100
+=============================================
+REVIEW_STARTED=2026-05-19T20:37:33Z
+
+--- Pre-check: Analyzing PR #2100 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(agent): guard agent prompts against model max-context limit (#2074)
+  Author: CodeGhost21
+  Branch: cursor/a01-2074-agent-token-budget -> main
+  State: OPEN | Draft: false
+  Labels: agent, working, bug
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Continuation review (2 prior cycles, last commit: 168f0cd5976111b3fb5d71b951918bc56bad98fe)
+[Pre-check] Linked issues: Closes #2074
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (1 review(s))
+
+--- Pre-check summary (3s) ---
+  Continuation:  true
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, continuation, smart-re-review, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 235 lines, 1316 words
+
+--- Claude review started at 2026-05-19T20:37:36Z ---
+PR #2100: continuation, 0 critical, 0 major, 0 minor, 0 threads resolved, 3 still open → no new review posted (no new commits, prior feedback unaddressed)
+
+--- Claude review finished (53s) ---
+
+--- Timing ---
+  Pre-checks: 3s
+  Claude review: 53s
+  Total: 56s
+
+REVIEW_ENDED=2026-05-19T20:38:29Z
+
+[Git] Committing and pushing review outputs...
+[main f8da326] Review PR #2100
+ 3 files changed, 24 insertions(+), 5 deletions(-)
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+error: cannot rebase: You have unstaged changes.
+error: Please commit or stash them.
+[Git] Pull failed, continuing anyway
+To github.com:graycyrus/automation-review-pr.git
+   9bb30b6..f8da326  main -> main
+
+=== Done ===

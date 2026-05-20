@@ -1,0 +1,59 @@
+=============================================
+  PR Review — #2209
+=============================================
+REVIEW_STARTED=2026-05-19T20:23:09Z
+
+--- Pre-check: Analyzing PR #2209 ---
+[Pre-check] Fetching PR metadata...
+  Title: perf(app-state): parallelize runtime snapshot and add per-stage timeouts
+  Author: M3gA-Mind
+  Branch: fix/app-state-snapshot-perf -> main
+  State: OPEN | Draft: false
+  Labels: rust-core
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #2155
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (5 review(s))
+
+--- Pre-check summary (3s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:23:12Z ---
+PR #2209: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → coderabbit covered all, moved to to-be-approved
+
+--- Claude review finished (116s) ---
+
+--- Timing ---
+  Pre-checks: 3s
+  Claude review: 116s
+  Total: 119s
+
+REVIEW_ENDED=2026-05-19T20:25:08Z
+
+[Git] Committing and pushing review outputs...
+[main 4e7b492] Review PR #2209
+ 2 files changed, 60 insertions(+)
+ create mode 100644 to-be-approved/PR-2083.md
+ create mode 100644 to-be-approved/PR-2209.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   8be1590..4e7b492  main -> main
+
+=== Done ===

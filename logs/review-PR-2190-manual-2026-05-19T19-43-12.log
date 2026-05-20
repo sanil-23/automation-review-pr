@@ -1,0 +1,101 @@
+=============================================
+  PR Review — #2190
+=============================================
+REVIEW_STARTED=2026-05-19T19:43:12Z
+
+--- Pre-check: Analyzing PR #2190 ---
+[Pre-check] Fetching PR metadata...
+  Title: Fix/embeddings OpenAI expected error reporting
+  Author: YellowSnnowmann
+  Branch: fix/embeddings-openai-expected-error-reporting -> main
+  State: OPEN | Draft: false
+  Labels: working
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: 
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (1 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 181 lines, 918 words
+
+--- Claude review started at 2026-05-19T19:43:14Z ---
+PR #2190: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+
+--- Claude review finished (71s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 71s
+  Total: 73s
+
+REVIEW_ENDED=2026-05-19T19:44:25Z
+
+[Git] Committing and pushing review outputs...
+On branch main
+Your branch is ahead of 'origin/main' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   status.json
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	already-merged/PR-2011.md
+	already-merged/PR-2025.md
+	already-merged/PR-2212.md
+	logs/approve-PR-2212-2026-05-19T19-41-36.log
+	logs/merge-PR-2212-2026-05-19T19-41-50.log
+	logs/review-PR-2085-manual-2026-05-19T16-22-32.log
+	logs/review-PR-2085-manual-2026-05-19T19-43-16.log
+	logs/review-PR-2089-manual-2026-05-19T19-43-26.log
+	logs/review-PR-2090-manual-2026-05-19T16-23-55.log
+	logs/review-PR-2090-manual-2026-05-19T19-43-15.log
+	logs/review-PR-2098-manual-2026-05-19T19-43-26.log
+	logs/review-PR-2100-manual-2026-05-19T19-43-25.log
+	logs/review-PR-2103-manual-2026-05-19T19-43-14.log
+	logs/review-PR-2107-manual-2026-05-19T19-43-14.log
+	logs/review-PR-2108-manual-2026-05-19T19-43-24.log
+	logs/review-PR-2114-manual-2026-05-19T19-42-56.log
+	logs/review-PR-2116-manual-2026-05-19T19-42-56.log
+	logs/review-PR-2149-manual-2026-05-19T19-42-55.log
+	logs/review-PR-2180-manual-2026-05-19T19-43-12.log
+	logs/review-PR-2188-manual-2026-05-19T19-42-55.log
+	logs/review-PR-2190-manual-2026-05-19T19-43-12.log
+	logs/review-PR-2196-manual-2026-05-19T19-42-54.log
+	logs/review-PR-2200-manual-2026-05-19T19-43-10.log
+	logs/review-PR-2201-manual-2026-05-19T19-43-10.log
+	logs/review-PR-2210-manual-2026-05-19T16-21-35.log
+	logs/review-PR-2212-manual-2026-05-19T19-35-13.log
+	logs/review-PR-2224-manual-2026-05-19T16-21-33.log
+	logs/review-PR-2235-manual-2026-05-19T19-42-31.log
+	logs/review-PR-2236-manual-2026-05-19T19-42-42.log
+	logs/review-PR-2237-manual-2026-05-19T19-42-30.log
+	logs/review-PR-2238-manual-2026-05-19T19-42-30.log
+	logs/review-PR-2239-manual-2026-05-19T19-42-41.log
+	logs/review-PR-2240-manual-2026-05-19T19-42-25.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
+Nothing to commit
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+Everything up-to-date
+
+=== Done ===

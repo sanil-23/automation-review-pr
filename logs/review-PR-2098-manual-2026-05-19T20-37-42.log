@@ -1,0 +1,58 @@
+=============================================
+  PR Review — #2098
+=============================================
+REVIEW_STARTED=2026-05-19T20:37:42Z
+
+--- Pre-check: Analyzing PR #2098 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(whatsapp): retry WhatsApp SQLite writes on database-is-locked (#2077)
+  Author: CodeGhost21
+  Branch: cursor/a02-2077-whatsapp-sqlite-retry -> main
+  State: OPEN | Draft: false
+  Labels: bug
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #2077
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (2 review(s))
+
+--- Pre-check summary (3s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:37:45Z ---
+PR #2098: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+
+--- Claude review finished (116s) ---
+
+--- Timing ---
+  Pre-checks: 3s
+  Claude review: 116s
+  Total: 119s
+
+REVIEW_ENDED=2026-05-19T20:39:41Z
+
+[Git] Committing and pushing review outputs...
+[main 3d3e5fd] Review PR #2098
+ 1 file changed, 29 insertions(+)
+ create mode 100644 to-be-approved/PR-2098.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   9bf5740..3d3e5fd  main -> main
+
+=== Done ===

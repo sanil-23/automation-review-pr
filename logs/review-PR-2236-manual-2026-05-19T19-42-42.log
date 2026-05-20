@@ -1,0 +1,61 @@
+=============================================
+  PR Review — #2236
+=============================================
+REVIEW_STARTED=2026-05-19T19:42:42Z
+
+--- Pre-check: Analyzing PR #2236 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(linux): restore tauri-cef pin so AppImage stops bundling libm.so.6 (#2154)
+  Author: sanil-23
+  Branch: fix/2154-appimage-libm-glibc-conflict -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Resolves #2088
+Closes #2154
+Closes #2088
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (4 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 181 lines, 918 words
+
+--- Claude review started at 2026-05-19T19:42:44Z ---
+PR #2236: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+
+--- Claude review finished (86s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 86s
+  Total: 88s
+
+REVIEW_ENDED=2026-05-19T19:44:10Z
+
+[Git] Committing and pushing review outputs...
+[main 0c24ace] Review PR #2236
+ 2 files changed, 60 insertions(+)
+ create mode 100644 to-be-approved/PR-2235.md
+ create mode 100644 to-be-approved/PR-2236.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   11d6098..0c24ace  main -> main
+
+=== Done ===

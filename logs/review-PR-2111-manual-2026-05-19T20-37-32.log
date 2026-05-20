@@ -1,0 +1,58 @@
+=============================================
+  PR Review — #2111
+=============================================
+REVIEW_STARTED=2026-05-19T20:37:32Z
+
+--- Pre-check: Analyzing PR #2111 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(security): always canonicalize paths before policy check
+  Author: M3gA-Mind
+  Branch: fix/symlink-bypass-path-validation -> main
+  State: OPEN | Draft: false
+  Labels: rust-core
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Continuation review (1 prior cycles, last commit: 60d7a0fcbd48e620e8750da938174d9fabbb53f3)
+[Pre-check] Linked issues: Closes #1927
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (9 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  true
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, continuation, smart-re-review, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 235 lines, 1316 words
+
+--- Claude review started at 2026-05-19T20:37:35Z ---
+PR #2111: continuation, 0 critical, 0 major, 0 minor, 3 threads resolved, 0 still open → COMMENT previous changes addressed, moved to to-be-approved
+
+--- Claude review finished (102s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 102s
+  Total: 105s
+
+REVIEW_ENDED=2026-05-19T20:39:17Z
+
+[Git] Committing and pushing review outputs...
+[main 875207d] Review PR #2111
+ 1 file changed, 19 insertions(+)
+ rename {tinyhumansai-openhuman => to-be-approved}/PR-2111.md (65%)
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   f975a60..875207d  main -> main
+
+=== Done ===

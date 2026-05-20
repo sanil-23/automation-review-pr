@@ -1,0 +1,60 @@
+=============================================
+  PR Review — #2180
+=============================================
+REVIEW_STARTED=2026-05-19T20:36:01Z
+
+--- Pre-check: Analyzing PR #2180 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(credentials): diagnose + recover from H8 auth-profile-lock create failures
+  Author: YellowSnnowmann
+  Branch: fix/sentry-h8-auth-profile-lock-diagnostics -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: 
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (2 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:36:03Z ---
+PR #2180: continuation, 0 critical, 0 major, 1 minor, 0 threads resolved, 1 still open → COMMENT previous changes addressed, moved to to-be-approved
+
+--- Claude review finished (130s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 130s
+  Total: 132s
+
+REVIEW_ENDED=2026-05-19T20:38:13Z
+
+[Git] Committing and pushing review outputs...
+[main 9bb30b6] Review PR #2180
+ 1 file changed, 50 insertions(+)
+ create mode 100644 to-be-approved/PR-2180.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+error: cannot rebase: You have unstaged changes.
+error: Please commit or stash them.
+[Git] Pull failed, continuing anyway
+To github.com:graycyrus/automation-review-pr.git
+   2a52a0f..9bb30b6  main -> main
+
+=== Done ===

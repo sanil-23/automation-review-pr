@@ -1,0 +1,57 @@
+=============================================
+  PR Review — #2103
+=============================================
+REVIEW_STARTED=2026-05-19T20:37:37Z
+
+--- Pre-check: Analyzing PR #2103 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(tauri): resolve Linux CEF init panic — root/container + SingletonLock + display-server guards (OPENHUMAN-TAURI-K1)
+  Author: YellowSnnowmann
+  Branch: fix/sentry-OPENHUMAN-TAURI-K1 -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Continuation review (PR was in to-be-approved/)
+[Pre-check] Linked issues: 
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (4 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  true
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, continuation, smart-re-review, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 235 lines, 1316 words
+
+--- Claude review started at 2026-05-19T20:37:39Z ---
+PR #2103: continuation, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → no issues (no new commits since last review, already in to-be-approved)
+
+--- Claude review finished (66s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 66s
+  Total: 68s
+
+REVIEW_ENDED=2026-05-19T20:38:45Z
+
+[Git] Committing and pushing review outputs...
+[main 2bc39ce] Review PR #2103
+ 3 files changed, 60 insertions(+)
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   a879942..2bc39ce  main -> main
+
+=== Done ===

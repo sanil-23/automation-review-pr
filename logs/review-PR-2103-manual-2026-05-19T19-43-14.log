@@ -1,0 +1,37 @@
+=============================================
+  PR Review — #2103
+=============================================
+REVIEW_STARTED=2026-05-19T19:43:14Z
+
+--- Pre-check: Analyzing PR #2103 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(tauri): resolve Linux CEF init panic — root/container + SingletonLock + display-server guards (OPENHUMAN-TAURI-K1)
+  Author: YellowSnnowmann
+  Branch: fix/sentry-OPENHUMAN-TAURI-K1 -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: 
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (4 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 181 lines, 918 words
+
+--- Claude review started at 2026-05-19T19:43:17Z ---
+You've hit your limit · resets 1:30am (Asia/Calcutta)

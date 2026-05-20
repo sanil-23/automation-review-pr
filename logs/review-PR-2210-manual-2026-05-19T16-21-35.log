@@ -1,0 +1,43 @@
+=== Reviewing PR #2210 ===
+REVIEW_STARTED=2026-05-19T16:21:35Z
+
+[Phase A] Gathering intelligence...
+Intelligence context file written to `/Users/cyrus/Desktop/automation/review-pr/tinyhumansai-openhuman/.context-PR-2210.md`.
+
+**Summary of key findings:**
+
+1. **Bundled scope**: PR mixes two unrelated concerns — security/path validation refactoring (commits 1-4) and the Ollama URL feature (commits 5-7). These should ideally be separate PRs.
+
+2. **Issue alignment**: The Ollama URL feature (Issue #2159) is fully implemented — all 9 acceptance criteria are met.
+
+3. **CodeRabbit**: 19 actionable comments posted, all resolved. Author addressed most via fix commits; dismissed 3 as pre-existing/out-of-scope. CodeRabbit approved after fixes.
+
+4. **Unresolved CodeRabbit outside-diff issues** (not yet fixed):
+   - `ollama_runner_ok_at` still uses POST for `/api/tags` (should be GET)
+   - `vision_embed.rs` still logs raw URLs without redaction
+   - Windows `%5c` traversal not blocked in `is_path_string_allowed`
+
+5. **Test coverage**: Comprehensive — 47+ new tests across Rust and TypeScript covering happy paths, errors, and edge cases.
+
+6. **No dependency changes**, no breaking external API changes.
+
+[Phase B] Deep review + posting...
+Posted review on PR #2210:
+- Walkthrough + change summary (review body)
+- 3 inline comments (0 critical, 2 major, 1 minor)
+
+PR #2210: fresh, 0 critical, 2 major, 1 minor, 0 threads resolved, 0 still open → REQUEST_CHANGES
+REVIEW_ENDED=2026-05-19T16:28:45Z
+
+[Git] Committing and pushing review outputs...
+[main 5a0e763] Review PR #2210
+ 2 files changed, 32 insertions(+), 249 deletions(-)
+ delete mode 100644 tinyhumansai-openhuman/.context-PR-2210.md
+ create mode 100644 tinyhumansai-openhuman/PR-2210.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   5ef014f..5a0e763  main -> main
+
+=== Done ===

@@ -1,0 +1,37 @@
+=============================================
+  PR Review — #2089
+=============================================
+REVIEW_STARTED=2026-05-19T19:43:26Z
+
+--- Pre-check: Analyzing PR #2089 ---
+[Pre-check] Fetching PR metadata...
+  Title: test(settings): backfill unit tests for team / billing / notifications panels (#1870)
+  Author: CodeGhost21
+  Branch: tests/settings-panels-team-billing-notifications -> main
+  State: OPEN | Draft: false
+  Labels: working
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #1870
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (1 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 181 lines, 918 words
+
+--- Claude review started at 2026-05-19T19:43:28Z ---
+You've hit your limit · resets 1:30am (Asia/Calcutta)

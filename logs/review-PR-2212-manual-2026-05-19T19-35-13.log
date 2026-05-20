@@ -1,0 +1,61 @@
+=============================================
+  PR Review — #2212
+=============================================
+REVIEW_STARTED=2026-05-19T19:35:13Z
+
+--- Pre-check: Analyzing PR #2212 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(memory): connection pooling + circuit breaker for memory_tree SQLite (#2206)
+  Author: M3gA-Mind
+  Branch: fix/memory-tree-sqlite-init-failures -> main
+  State: OPEN | Draft: false
+  Labels: memory
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #2206
+Closes #2206
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (2 review(s))
+
+--- Pre-check summary (3s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 181 lines, 918 words
+
+--- Claude review started at 2026-05-19T19:35:16Z ---
+PR #2212: fresh, 0 critical, 3 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+
+--- Claude review finished (324s) ---
+
+--- Timing ---
+  Pre-checks: 3s
+  Claude review: 324s
+  Total: 327s
+
+REVIEW_ENDED=2026-05-19T19:40:40Z
+
+[Git] Committing and pushing review outputs...
+[main fd6d669] Review PR #2212
+ 3 files changed, 32 insertions(+), 62 deletions(-)
+ delete mode 100644 tinyhumansai-openhuman/PR-2011.md
+ delete mode 100644 tinyhumansai-openhuman/PR-2025.md
+ create mode 100644 to-be-approved/PR-2212.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   8870876..fd6d669  main -> main
+
+=== Done ===

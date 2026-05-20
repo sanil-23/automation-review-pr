@@ -1,0 +1,37 @@
+=============================================
+  PR Review — #2149
+=============================================
+REVIEW_STARTED=2026-05-19T19:42:55Z
+
+--- Pre-check: Analyzing PR #2149 ---
+[Pre-check] Fetching PR metadata...
+  Title: feat(approval): gate external-effect tool calls until user approves (#1339)
+  Author: oxoxDev
+  Branch: feat/1339-triggers-approval-gate -> main
+  State: OPEN | Draft: false
+  Labels: working
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #1339
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (13 review(s))
+
+--- Pre-check summary (3s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 181 lines, 918 words
+
+--- Claude review started at 2026-05-19T19:42:58Z ---
+You've hit your limit · resets 1:30am (Asia/Calcutta)

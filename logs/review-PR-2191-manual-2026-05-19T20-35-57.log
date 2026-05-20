@@ -1,0 +1,61 @@
+=============================================
+  PR Review — #2191
+=============================================
+REVIEW_STARTED=2026-05-19T20:35:57Z
+
+--- Pre-check: Analyzing PR #2191 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(composio): request Gmail read scope for triggers
+  Author: aqilaziz
+  Branch: codex/2186-gmail-scopes-forkbase -> main
+  State: OPEN | Draft: false
+  Labels: working
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Fixes #2186
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (2 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:35:59Z ---
+PR #2191: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → moved to to-be-approved
+
+--- Claude review finished (102s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 102s
+  Total: 104s
+
+REVIEW_ENDED=2026-05-19T20:37:41Z
+
+[Git] Committing and pushing review outputs...
+[main 8ba62b3] Review PR #2191
+ 1 file changed, 29 insertions(+)
+ create mode 100644 to-be-approved/PR-2191.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+error: cannot rebase: You have unstaged changes.
+error: Please commit or stash them.
+[Git] Pull failed, continuing anyway
+The stash entry is kept in case you need it again.
+To github.com:graycyrus/automation-review-pr.git
+   60bcab6..8ba62b3  main -> main
+
+=== Done ===

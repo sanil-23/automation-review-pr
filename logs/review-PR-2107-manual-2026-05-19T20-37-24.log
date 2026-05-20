@@ -1,0 +1,59 @@
+=============================================
+  PR Review — #2107
+=============================================
+REVIEW_STARTED=2026-05-19T20:37:24Z
+
+--- Pre-check: Analyzing PR #2107 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(observability,database): silence expected provider/channel errors and add SQLite busy timeout for WhatsApp store
+  Author: YellowSnnowmann
+  Branch: fix/resolve-or-silent-sentry-bugs -> main
+  State: OPEN | Draft: false
+  Labels: working
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: 
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (3 review(s))
+
+--- Pre-check summary (3s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:37:27Z ---
+PR #2107: continuation, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → COMMENT previous changes addressed|moved to to-be-approved
+
+--- Claude review finished (97s) ---
+
+--- Timing ---
+  Pre-checks: 3s
+  Claude review: 97s
+  Total: 100s
+
+REVIEW_ENDED=2026-05-19T20:39:04Z
+
+[Git] Committing and pushing review outputs...
+[main f975a60] Review PR #2107
+ 3 files changed, 101 insertions(+), 3 deletions(-)
+ create mode 100644 to-be-approved/PR-2107.md
+ create mode 100644 to-be-approved/PR-2114.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   f7c5148..f975a60  main -> main
+
+=== Done ===

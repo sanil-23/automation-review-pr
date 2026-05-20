@@ -1,0 +1,58 @@
+=============================================
+  PR Review — #2089
+=============================================
+REVIEW_STARTED=2026-05-19T20:23:16Z
+
+--- Pre-check: Analyzing PR #2089 ---
+[Pre-check] Fetching PR metadata...
+  Title: test(settings): backfill unit tests for team / billing / notifications panels (#1870)
+  Author: CodeGhost21
+  Branch: tests/settings-panels-team-billing-notifications -> main
+  State: OPEN | Draft: false
+  Labels: working
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #1870
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (1 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:23:18Z ---
+PR #2089: fresh, 0 critical, 0 major, 0 minor, 0 threads resolved, 0 still open → coderabbit covered all, moved to to-be-approved
+
+--- Claude review finished (118s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 118s
+  Total: 120s
+
+REVIEW_ENDED=2026-05-19T20:25:16Z
+
+[Git] Committing and pushing review outputs...
+[main f4c3736] Review PR #2089
+ 2 files changed, 31 insertions(+), 1 deletion(-)
+ create mode 100644 to-be-approved/PR-2089.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   4e7b492..f4c3736  main -> main
+
+=== Done ===

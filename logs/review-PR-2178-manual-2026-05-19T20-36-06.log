@@ -1,0 +1,62 @@
+=============================================
+  PR Review — #2178
+=============================================
+REVIEW_STARTED=2026-05-19T20:36:06Z
+
+--- Pre-check: Analyzing PR #2178 ---
+[Pre-check] Fetching PR metadata...
+  Title: feat(ops): implement external uptime monitoring and health checks
+  Author: SATYAM-PRATIBHAN
+  Branch: ops/uptime-monitoring-2058 -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: CHANGES_REQUESTED
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #2058
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (3 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:36:08Z ---
+PR #2178: fresh, 0 critical, 2 major, 1 minor, 0 threads resolved, 0 still open → REQUEST_CHANGES
+
+--- Claude review finished (149s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 149s
+  Total: 151s
+
+REVIEW_ENDED=2026-05-19T20:38:37Z
+
+[Git] Committing and pushing review outputs...
+[main 072255b] Review PR #2178
+ 5 files changed, 73 insertions(+), 2 deletions(-)
+ create mode 100644 tinyhumansai-openhuman/PR-2178.md
+ rename {tinyhumansai-openhuman => to-be-approved}/PR-2210.md (65%)
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+warning: fetch updated the current branch head.
+fast-forwarding your working tree from
+commit 072255bffd5a1ea93fb8703a29cce1f28ec47ecd.
+Current branch main is up to date.
+To github.com:graycyrus/automation-review-pr.git
+   f8da326..a879942  main -> main
+
+=== Done ===

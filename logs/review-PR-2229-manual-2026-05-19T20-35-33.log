@@ -1,0 +1,61 @@
+=============================================
+  PR Review — #2229
+=============================================
+REVIEW_STARTED=2026-05-19T20:35:33Z
+
+--- Pre-check: Analyzing PR #2229 ---
+[Pre-check] Fetching PR metadata...
+  Title: fix(tauri): forward hot-instance OAuth deep links
+  Author: NgoQuocViet2001
+  Branch: ai/fix-windows-oauth-deeplink -> main
+  State: OPEN | Draft: false
+  Labels: none
+  Review decision: 
+
+[Pre-check] Fetching diff stat...
+  0
+0 files changed — 
+
+[Pre-check] Fresh review (no prior tracking file)
+[Pre-check] Linked issues: Closes #2228
+[Pre-check] No dependency changes
+[Pre-check] No logic file changes (config/docs/tests only)
+[Pre-check] CodeRabbit has reviewed (1 review(s))
+
+--- Pre-check summary (2s) ---
+  Continuation:  false
+  Linked issues: true
+  Dep changes:   false
+  Logic changes: false
+  CodeRabbit:    true
+
+--- Assembling prompt ---
+  Sections: header, core-steps, linked-issues, coderabbit-dedup, review-post, tracking-update, footer
+  Prompt size: 187 lines, 1079 words
+
+--- Claude review started at 2026-05-19T20:35:35Z ---
+PR #2229: fresh, 0 critical, 1 major, 0 minor, 0 threads resolved, 0 still open → REQUEST_CHANGES
+
+--- Claude review finished (93s) ---
+
+--- Timing ---
+  Pre-checks: 2s
+  Claude review: 93s
+  Total: 95s
+
+REVIEW_ENDED=2026-05-19T20:37:08Z
+
+[Git] Committing and pushing review outputs...
+[main d487bdc] Review PR #2229
+ 2 files changed, 60 insertions(+)
+ create mode 100644 tinyhumansai-openhuman/PR-2229.md
+ create mode 100644 to-be-approved/PR-2185.md
+From github.com:graycyrus/automation-review-pr
+ * branch            main       -> FETCH_HEAD
+error: cannot rebase: You have unstaged changes.
+error: Please commit or stash them.
+[Git] Pull failed, continuing anyway
+To github.com:graycyrus/automation-review-pr.git
+   4d1673a..d487bdc  main -> main
+
+=== Done ===
