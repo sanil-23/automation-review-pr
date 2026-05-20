@@ -72,8 +72,11 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     log('Posting APPROVE review to GitHub...');
     let reviewUrl: string | null = null;
     try {
+      // Post the APPROVE review with no body — the personalized welcome
+      // comment posted by /api/trigger/welcome after merge handles the
+      // human-facing message now.
       const reviewOut = execSync(
-        `gh api repos/${REPO}/pulls/${prId}/reviews -X POST -f event=APPROVE -f body="Looks good, nice work!"`,
+        `gh api repos/${REPO}/pulls/${prId}/reviews -X POST -f event=APPROVE`,
         { encoding: 'utf-8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] }
       );
       const review = JSON.parse(reviewOut);
