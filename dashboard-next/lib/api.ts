@@ -19,6 +19,8 @@ async function jpost<T>(url: string): Promise<T> {
 }
 
 export const api = {
+  whoami: () => jget<{ login: string | null; name: string | null }>('/api/whoami'),
+  openPulls: () => jget<{ ids: number[]; cached?: boolean }>('/api/open-pulls'),
   stats: () => jget<Stats>('/api/stats'),
   filters: () => jget<FilterOptions>('/api/filters'),
   prs: (filters: PrFilters = {}) => {

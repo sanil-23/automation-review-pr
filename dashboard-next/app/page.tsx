@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { usePrStore } from '@/store/usePrStore';
+import { useWhoamiStore } from '@/store/useWhoamiStore';
 import { StatsBar } from '@/components/StatsBar';
 import { FilterBar } from '@/components/FilterBar';
 import { PrTable } from '@/components/PrTable';
@@ -9,17 +10,23 @@ import { api } from '@/lib/api';
 
 export default function DashboardPage() {
   const { prs, stats, loading, error, load, filters, setFilter } = usePrStore();
+  const me = useWhoamiStore((s) => s.login);
+  const loadMe = useWhoamiStore((s) => s.load);
   const [busy, setBusy] = useState<null | 'sync' | 'discover'>(null);
   const conflictCount = prs.filter((p) => p.mergeable === 'CONFLICTING').length;
   const conflictFilterActive = filters.mergeable === 'CONFLICTING';
-  const mineCount = prs.filter((p) => (p.assignees || '').toLowerCase().includes('graycyrus')).length;
-  const mineFilterActive = filters.assignee === 'graycyrus';
+  const meLower = me?.toLowerCase() ?? null;
+  const mineCount = meLower
+    ? prs.filter((p) => (p.assignees || '').toLowerCase().includes(meLower)).length
+    : 0;
+  const mineFilterActive = me ? filters.assignee === me : false;
 
   useEffect(() => {
+    loadMe();
     load();
     const t = setInterval(load, 30000);
     return () => clearInterval(t);
-  }, [load]);
+  }, [load, loadMe]);
 
   const handleSync = async () => {
     setBusy('sync');
@@ -51,9 +58,9 @@ export default function DashboardPage() {
               {conflictFilterActive ? `Conflicts only (${conflictCount}) ×` : `${conflictCount} with conflicts`}
             </button>
           )}
-          {(mineCount > 0 || mineFilterActive) && (
+          {me && (mineCount > 0 || mineFilterActive) && (
             <button
-              onClick={() => setFilter('assignee', mineFilterActive ? undefined : 'graycyrus')}
+              onClick={() => setFilter('assignee', mineFilterActive ? undefined : me)}
               className={
                 'rounded border px-2 py-1 text-xs font-medium transition-colors ' +
                 (mineFilterActive

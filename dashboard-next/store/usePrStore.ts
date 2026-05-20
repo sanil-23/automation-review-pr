@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { api, gh } from '@/lib/api';
+import { api } from '@/lib/api';
 import type { Pr, Stats, FilterOptions, PrFilters } from '@/lib/types';
 
 interface PrStore {
@@ -45,17 +45,17 @@ export const usePrStore = create<PrStore>((set, get) => ({
   load: async () => {
     set({ loading: true, error: null });
     try {
-      // Hit the local DB and GitHub's public open-PR list in parallel.
-      // The local DB may still hold PRs that have been merged/closed on GitHub
-      // (e.g. tracking file in `already-merged/` but its `**Status**: clean`
-      // line outranks the location signal during parsing). We trust GitHub for
-      // open-state and filter accordingly unless include_merged is set.
+      // Hit the local DB and the server-backed open-PR list in parallel. We
+      // route through /api/open-pulls (authenticated gh CLI, 5000 req/hr)
+      // instead of the public api.github.com (60/hr per IP) so the merged-
+      // filter doesn't silently break under rate-limit pressure.
       const filters = get().filters;
-      const [prs, stats, openIds] = await Promise.all([
+      const [prs, stats, openRes] = await Promise.all([
         api.prs(filters),
         api.stats(),
-        filters.include_merged ? Promise.resolve(null) : gh.openPullNumbers().catch(() => null),
+        filters.include_merged ? Promise.resolve(null) : api.openPulls().catch(() => null),
       ]);
+      const openIds = openRes ? new Set(openRes.ids) : null;
       const filtered = openIds ? prs.filter((p) => openIds.has(p.id)) : prs;
       set({ prs: filtered, stats, loading: false });
     } catch (err: any) {

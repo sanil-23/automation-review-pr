@@ -4,6 +4,7 @@ import { Badge, statusTone } from './Badge';
 import { ExtLink } from './ExtLink';
 import { clsx } from '@/lib/clsx';
 import { gh } from '@/lib/api';
+import { useWhoamiStore } from '@/store/useWhoamiStore';
 import type { Pr } from '@/lib/types';
 
 function ciBadge(pr: Pr) {
@@ -13,17 +14,16 @@ function ciBadge(pr: Pr) {
   return <Badge tone="green">{pr.ci_pass}/{pr.ci_total} pass</Badge>;
 }
 
-// Render assignees as compact chips, highlighting "us" (graycyrus) so it's
-// obvious at a glance which PRs we've already picked up.
-const YOU = 'graycyrus';
-
-function AssigneeChips({ assignees }: { assignees?: string }) {
+// Render assignees as compact chips, highlighting "us" (the gh CLI user) so
+// it's obvious at a glance which PRs we've already picked up.
+function AssigneeChips({ assignees, me }: { assignees?: string; me: string | null }) {
   const list = (assignees || '').split(',').map((s) => s.trim()).filter(Boolean);
   if (list.length === 0) return <span className="text-[var(--color-text-muted)] text-xs">—</span>;
+  const meLower = me?.toLowerCase() ?? null;
   return (
     <span className="flex flex-wrap gap-1">
       {list.map((name) =>
-        name.toLowerCase() === YOU ? (
+        meLower && name.toLowerCase() === meLower ? (
           <Badge key={name} tone="blue" title={`Assigned to ${name} (you)`}>you</Badge>
         ) : (
           <Badge key={name} tone="gray" title={`Assigned to ${name}`}>{name}</Badge>
@@ -46,6 +46,7 @@ function findingsBadge(pr: Pr) {
 }
 
 export function PrTable({ prs }: { prs: Pr[] }) {
+  const me = useWhoamiStore((s) => s.login);
   if (prs.length === 0) {
     return <div className="rounded border border-[var(--color-border)] p-8 text-center text-[var(--color-text-muted)]">No PRs match the current filters.</div>;
   }
@@ -95,7 +96,7 @@ export function PrTable({ prs }: { prs: Pr[] }) {
                 {pr.is_running ? <Badge tone="yellow" className="ml-2">reviewing…</Badge> : null}
               </td>
               <td className="px-3 py-2 text-[var(--color-text-muted)]">{pr.author || '-'}</td>
-              <td className="px-3 py-2"><AssigneeChips assignees={pr.assignees} /></td>
+              <td className="px-3 py-2"><AssigneeChips assignees={pr.assignees} me={me} /></td>
               <td className="px-3 py-2"><Badge tone={statusTone(pr.status)}>{pr.status || '-'}</Badge></td>
               <td className="px-3 py-2">{ciBadge(pr)}</td>
               <td className="px-3 py-2">{findingsBadge(pr)}</td>

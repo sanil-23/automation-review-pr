@@ -57,7 +57,6 @@ export function FixTerminal({ prId }: { prId: number }) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const preRef = useRef<HTMLPreElement>(null);
-  const stickToBottom = useRef(true);
 
   const send = async (payload: { text?: string; key?: string }) => {
     setSending(true);
@@ -88,20 +87,18 @@ export function FixTerminal({ prId }: { prId: number }) {
     return () => { cancelled = true; clearInterval(interval); };
   }, [prId]);
 
-  // Auto-scroll to bottom when content updates, unless the user scrolled up.
+  // Always pin to the bottom on content change. requestAnimationFrame waits
+  // for the new content to lay out before we compute scrollHeight, otherwise
+  // we sometimes scroll to the old height and miss the latest line.
   useEffect(() => {
     const el = preRef.current;
-    if (!el || !stickToBottom.current) return;
-    el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
   }, [status?.content]);
 
   if (!status || !status.mapping) return null;
-
-  const onScroll = () => {
-    const el = preRef.current;
-    if (!el) return;
-    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-  };
 
   const m = status.mapping;
   const attach = `tmux attach -t super-review \\; select-window -t ${m.window}`;
@@ -142,7 +139,6 @@ export function FixTerminal({ prId }: { prId: number }) {
       </div>
       <pre
         ref={preRef}
-        onScroll={onScroll}
         className="bg-black/40 border border-[var(--color-border)] rounded p-3 text-xs leading-snug font-mono max-h-[480px] overflow-auto whitespace-pre-wrap break-words"
       >
         {status.content ? linkify(status.content) : '(empty)'}
@@ -189,6 +185,18 @@ export function FixTerminal({ prId }: { prId: number }) {
               {k.label}
             </button>
           ))}
+          {/* /exit is a claude slash-command, not a tmux key — type it as
+              text and press Enter. Frees the pane so it shows up as idle
+              again for the next fix. */}
+          <button
+            type="button"
+            onClick={() => send({ text: '/exit' })}
+            disabled={sending || !status.running}
+            className="rounded border border-red-500/40 bg-red-500/15 text-[var(--color-red)] hover:bg-red-500/25 px-2 py-0.5 disabled:opacity-50"
+            title="Send /exit to claude to free this pane"
+          >
+            /exit
+          </button>
         </div>
       </form>
     </Section>
