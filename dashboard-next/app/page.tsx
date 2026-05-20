@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { usePrStore } from '@/store/usePrStore';
 import { useWhoamiStore } from '@/store/useWhoamiStore';
 import { StatsBar } from '@/components/StatsBar';
@@ -7,6 +8,9 @@ import { FilterBar } from '@/components/FilterBar';
 import { PrTable } from '@/components/PrTable';
 import { Button } from '@/components/Button';
 import { api } from '@/lib/api';
+
+const POLL_FAST = 3000;
+const POLL_SLOW = 30000;
 
 export default function DashboardPage() {
   const { prs, stats, loading, error, load, filters, setFilter } = usePrStore();
@@ -21,12 +25,33 @@ export default function DashboardPage() {
     : 0;
   const mineFilterActive = me ? filters.assignee === me : false;
 
+  const runningPrs = prs.filter((p) => p.is_running);
+  // Also account for status.json signalling a PR that the DB query didn't flag
+  const liveStatus = stats?.liveStatus;
+  if (liveStatus?.running && liveStatus.pr && !runningPrs.some((p) => p.id === liveStatus.pr)) {
+    const fromList = prs.find((p) => p.id === liveStatus.pr);
+    if (fromList) runningPrs.push(fromList);
+  }
+  const anyRunning = runningPrs.length > 0;
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rateRef = useRef(POLL_SLOW);
+
   useEffect(() => {
     loadMe();
     load();
-    const t = setInterval(load, 30000);
-    return () => clearInterval(t);
+    intervalRef.current = setInterval(load, POLL_SLOW);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [load, loadMe]);
+
+  // Switch polling rate when a review is active
+  useEffect(() => {
+    const desired = anyRunning ? POLL_FAST : POLL_SLOW;
+    if (desired !== rateRef.current) {
+      rateRef.current = desired;
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(load, desired);
+    }
+  }, [anyRunning, load]);
 
   const handleSync = async () => {
     setBusy('sync');
@@ -82,6 +107,26 @@ export default function DashboardPage() {
           </Button>
         </div>
       </div>
+      {runningPrs.length > 0 && (
+        <div className="flex items-center gap-2 rounded border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 mb-4 text-sm">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500" />
+          </span>
+          <span>
+            Reviewing{' '}
+            {runningPrs.map((pr, i) => (
+              <span key={pr.id}>
+                {i > 0 && ', '}
+                <Link href={`/pr/${pr.id}`} className="text-[var(--color-accent)] font-medium hover:underline">
+                  PR #{pr.id}
+                </Link>
+              </span>
+            ))}
+            …
+          </span>
+        </div>
+      )}
       <StatsBar stats={stats} />
       <FilterBar />
       {error && <div className="rounded border border-red-500/30 bg-red-500/10 p-3 mb-3 text-sm text-[var(--color-red)]">{error}</div>}

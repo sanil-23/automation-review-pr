@@ -11,6 +11,7 @@ import { CyclesTimeline } from '@/components/CyclesTimeline';
 import { TrackingFile } from '@/components/TrackingFile';
 import { Section } from '@/components/Section';
 import { FixTerminal } from '@/components/FixTerminal';
+import { LiveReviewLog } from '@/components/LiveReviewLog';
 
 export default function PrDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -59,6 +60,7 @@ export default function PrDetailPage({ params }: { params: Promise<{ id: string 
             <PrActions pr={pr} onAction={load} />
           </Section>
 
+          <LiveReviewLog prId={prId} isRunning={!!pr.is_running} />
           <FixTerminal prId={prId} />
 
           <GithubDescription prId={prId} />

@@ -12,6 +12,15 @@ export function PrHeader({ pr }: { pr: Pr }) {
         <h2 className="text-xl font-semibold flex-1">
           #{pr.id} {pr.title || '(untitled)'}
           {isDraft ? <Badge tone="purple" className="ml-2">draft</Badge> : null}
+          {pr.is_running && (
+            <span className="inline-flex items-center gap-1.5 ml-3 text-sm font-medium text-yellow-500">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500" />
+              </span>
+              Reviewing…
+            </span>
+          )}
         </h2>
       </div>
 
