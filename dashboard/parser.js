@@ -80,6 +80,13 @@ function parseTrackingFile(filePath) {
     cycles.push(cycle);
   }
 
+  // Extract AI Summary section
+  const aiSummaryMatch = content.match(/## AI Summary\n\*Generated:\s*(.+?)\*\n\n([\s\S]*?)(?=\n## |\n$|$)/);
+  if (aiSummaryMatch) {
+    pr.ai_summary = aiSummaryMatch[2].trim();
+    pr.ai_summary_date = aiSummaryMatch[1].trim();
+  }
+
   return { pr, cycles };
 }
 

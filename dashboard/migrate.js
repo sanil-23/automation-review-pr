@@ -45,6 +45,10 @@ function migrate() {
       db.replaceCyclesForPr(pr.id, cycles);
     }
 
+    if (pr.ai_summary) {
+      db.updatePrSummary(pr.id, pr.ai_summary);
+    }
+
     console.log(`[migrate]   PR #${pr.id}: ${cycles.length} cycle(s) — ${pr.status}`);
   }
 

@@ -52,6 +52,10 @@ function syncFile(filePath, location) {
       db.replaceCyclesForPr(pr.id, cycles);
     }
 
+    if (pr.ai_summary) {
+      db.updatePrSummary(pr.id, pr.ai_summary);
+    }
+
     console.log(`[sync] Updated PR #${pr.id} from ${path.basename(filePath)}`);
   } catch (err) {
     console.error(`[sync] Error parsing ${filePath}: ${err.message}`);

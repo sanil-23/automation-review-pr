@@ -481,6 +481,153 @@ router.post('/merge/:id', (req, res) => {
   }
 });
 
+// POST /api/trigger/summarize/:id — run Claude to generate AI summary
+router.post('/summarize/:id', (req, res) => {
+  const prId = parseInt(req.params.id, 10);
+  const jobId = `summarize-${prId}`;
+
+  const existingJob = activeJobs.get(jobId);
+  if (existingJob && !existingJob.done) {
+    return res.status(409).json({ error: `Summarize for PR #${prId} is already running` });
+  }
+  if (existingJob) activeJobs.delete(jobId);
+
+  const pr = db.getPrById(prId);
+  if (!pr) return res.status(404).json({ error: 'PR not found' });
+
+  const prompt = `You are reviewing PR #${prId} in the repo ${REPO}.
+
+1. Fetch the PR details and full diff using: gh pr view ${prId} --repo ${REPO} and gh pr diff ${prId} --repo ${REPO}
+2. Fetch the linked issue if any (check the PR body for issue references like #NNN, then use gh issue view NNN --repo ${REPO})
+3. Read any files in the codebase that the PR touches (to understand existing patterns)
+
+Then give me:
+
+**What it does** — Explain in plain English what this PR does and why it matters for the app. No jargon.
+
+**Safety & Breaking concerns** — Rate the breaking risk (Zero / Low / Medium / High). Then check for:
+- Security flaws (injection, auth bypass, data leaks, missing validation)
+- Breaking changes to existing behavior
+- Missing edge case handling
+- Anything that could blow up in production
+
+**Bottom line** — One sentence: safe to merge or not, and why.
+
+Keep it concise. Lead with facts, not filler.`;
+
+  const logFile = path.join(LOGS_DIR, `summarize-PR-${prId}-${timestamp()}.log`);
+  const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+
+  const child = spawn('claude', ['-p', prompt], {
+    cwd: BASE_DIR,
+    env: { ...process.env, PATH: process.env.PATH },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  const job = {
+    pid: child.pid,
+    pr: prId,
+    type: 'summarize',
+    startedAt: new Date().toISOString(),
+    logFile,
+    logLines: [],
+    exitCode: null,
+    done: false,
+    child,
+  };
+  activeJobs.set(jobId, job);
+
+  let output = '';
+
+  const appendLine = (line) => {
+    job.logLines.push(line);
+    if (job.logLines.length > MAX_LOG_LINES) job.logLines.shift();
+  };
+
+  let stdoutBuf = '';
+  child.stdout.on('data', (chunk) => {
+    const text = chunk.toString();
+    logStream.write(chunk);
+    output += text;
+    stdoutBuf += text;
+    const lines = stdoutBuf.split('\n');
+    stdoutBuf = lines.pop();
+    lines.forEach(l => appendLine(l));
+  });
+
+  let stderrBuf = '';
+  child.stderr.on('data', (chunk) => {
+    logStream.write(chunk);
+    stderrBuf += chunk.toString();
+    const lines = stderrBuf.split('\n');
+    stderrBuf = lines.pop();
+    lines.forEach(l => appendLine(`[stderr] ${l}`));
+  });
+
+  child.on('close', (code) => {
+    if (stdoutBuf) appendLine(stdoutBuf);
+    if (stderrBuf) appendLine(`[stderr] ${stderrBuf}`);
+    logStream.end();
+    job.exitCode = code;
+    job.done = true;
+    job.endedAt = new Date().toISOString();
+
+    if (code === 0 && output.trim()) {
+      // Strip any preamble before the first content heading
+      let summary = output.trim();
+      const firstH2 = summary.indexOf('## ');
+      const firstBold = summary.indexOf('**What it does**');
+      const firstContent = [firstH2, firstBold].filter(i => i > 0);
+      if (firstContent.length > 0) {
+        summary = summary.slice(Math.min(...firstContent));
+      }
+
+      // Save to DB
+      db.updatePrSummary(prId, summary);
+
+      // Append to tracking .md file
+      const freshPr = db.getPrById(prId);
+      const trackingPath = freshPr?.tracking_file_path;
+      if (trackingPath && fs.existsSync(trackingPath)) {
+        let content = fs.readFileSync(trackingPath, 'utf-8');
+        // Remove old AI Summary section if present
+        content = content.replace(/\n## AI Summary[\s\S]*?(?=\n## |\n$|$)/, '');
+        // Append new summary before Review History
+        const insertPoint = content.indexOf('## Review History');
+        if (insertPoint !== -1) {
+          content = content.slice(0, insertPoint)
+            + `## AI Summary\n*Generated: ${new Date().toISOString()}*\n\n${summary}\n\n`
+            + content.slice(insertPoint);
+        } else {
+          content += `\n## AI Summary\n*Generated: ${new Date().toISOString()}*\n\n${summary}\n`;
+        }
+        fs.writeFileSync(trackingPath, content);
+      }
+    }
+
+    console.log(`[trigger] Summarize of PR #${prId} finished with code ${code}`);
+    setTimeout(() => activeJobs.delete(jobId), 5 * 60 * 1000);
+  });
+
+  child.on('error', (err) => {
+    appendLine(`[error] ${err.message}`);
+    logStream.end();
+    job.done = true;
+    job.exitCode = -1;
+    job.endedAt = new Date().toISOString();
+    console.error(`[trigger] Summarize of PR #${prId} failed: ${err.message}`);
+    setTimeout(() => activeJobs.delete(jobId), 5 * 60 * 1000);
+  });
+
+  res.json({
+    jobId,
+    pr: prId,
+    pid: child.pid,
+    logFile,
+    message: `Summarize started for PR #${prId}`,
+  });
+});
+
 // POST /api/trigger/cancel/:jobId — kill a running job
 router.post('/cancel/:jobId', (req, res) => {
   const jobId = req.params.jobId;

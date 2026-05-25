@@ -526,6 +526,103 @@ async function triggerReview(prId, redirectToDetail) {
   }
 }
 
+let _summarizeLogInterval = null;
+let _summarizeLinesSeen = 0;
+
+async function triggerSummarize(prId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Summarizing...';
+
+  try {
+    const res = await fetch(`${API}/api/trigger/summarize/${prId}`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      btn.textContent = 'Generating summary...';
+      // Hide old summary while regenerating
+      const oldSection = document.getElementById('ai-summary-section');
+      if (oldSection) oldSection.style.display = 'none';
+      startSummarizeLogPolling(data.jobId, prId);
+    } else {
+      alert(data.error || 'Failed to start summarize');
+      btn.disabled = false;
+      btn.textContent = 'Summarize';
+    }
+  } catch (err) {
+    alert('Failed: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = 'Summarize';
+  }
+}
+
+function startSummarizeLogPolling(jobId, prId) {
+  if (_summarizeLogInterval) clearInterval(_summarizeLogInterval);
+  _summarizeLinesSeen = 0;
+  const startTime = Date.now();
+
+  const section = document.getElementById('live-summarize-section');
+  if (section) {
+    section.style.display = '';
+    document.getElementById('live-summarize-content').innerHTML = '';
+    document.getElementById('live-summarize-status').innerHTML = '<span class="running-dot"></span> Running...';
+  }
+
+  async function poll() {
+    try {
+      const res = await fetch(`${API}/api/trigger/log/${jobId}?after=${_summarizeLinesSeen}`);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      const content = document.getElementById('live-summarize-content');
+      const footerEl = document.getElementById('live-summarize-footer');
+      const statusEl = document.getElementById('live-summarize-status');
+
+      if (data.lines.length > 0) {
+        for (const line of data.lines) {
+          const div = document.createElement('div');
+          div.className = 'live-log-line' + (line.startsWith('[stderr]') ? ' live-log-error' : '');
+          div.textContent = line;
+          content.appendChild(div);
+        }
+        _summarizeLinesSeen = data.total;
+        content.scrollTop = content.scrollHeight;
+      }
+
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      if (footerEl) footerEl.textContent = `${_summarizeLinesSeen} lines | ${formatDuration(elapsed)}`;
+
+      if (data.done) {
+        clearInterval(_summarizeLogInterval);
+        _summarizeLogInterval = null;
+        const success = data.exitCode === 0;
+        if (statusEl) statusEl.innerHTML = success
+          ? '<span class="badge badge-green">Done</span>'
+          : `<span class="badge badge-red">Failed (exit ${data.exitCode})</span>`;
+
+        // Re-enable the button
+        const btn = document.getElementById(`btn-summarize-${prId}`);
+        if (btn) { btn.disabled = false; btn.textContent = success ? 'Re-summarize' : 'Summarize'; }
+
+        // Refresh the PR detail to show the new summary
+        if (success) {
+          setTimeout(async () => {
+            const freshRes = await fetch(`${API}/api/prs/${prId}`);
+            if (freshRes.ok) {
+              const freshPr = await freshRes.json();
+              const container = document.getElementById('pr-detail');
+              if (container) renderPrDetail(freshPr, container);
+            }
+          }, 2500);
+        }
+      }
+    } catch (err) {
+      console.error('Summarize poll error:', err);
+    }
+  }
+
+  poll();
+  _summarizeLogInterval = setInterval(poll, 1500);
+}
+
 async function triggerDiscover() {
   const btn = document.getElementById('btn-discover');
   if (btn) {
@@ -816,6 +913,7 @@ async function loadPrDetail() {
 
     // Check for active job and start live log polling
     checkAndStartLiveLog(prId);
+    checkAndStartSummarizeLog(prId);
 
     // Poll for PR status changes
     setInterval(async () => {
@@ -839,6 +937,20 @@ async function checkAndStartLiveLog(prId) {
     const jobId = `review-${prId}`;
     if (jobs[jobId]) {
       startLiveLogPolling(jobId);
+    }
+  } catch {}
+}
+
+async function checkAndStartSummarizeLog(prId) {
+  try {
+    const jobsRes = await fetch(`${API}/api/trigger/jobs`);
+    const jobs = await jobsRes.json();
+    const jobId = `summarize-${prId}`;
+    const job = jobs[jobId];
+    if (job && !job.done) {
+      const btn = document.getElementById(`btn-summarize-${prId}`);
+      if (btn) { btn.disabled = true; btn.textContent = 'Generating summary...'; }
+      startSummarizeLogPolling(jobId, prId);
     }
   } catch {}
 }
@@ -1030,7 +1142,29 @@ function renderPrDetail(pr, container) {
               ${(pr.cycles || []).length > 0 ? 'Trigger Re-review' : 'Trigger Review'}
             </button>`
         }
+        <button class="btn" onclick="triggerSummarize(${pr.id}, this)" id="btn-summarize-${pr.id}">
+          ${pr.ai_summary ? 'Re-summarize' : 'Summarize'}
+        </button>
       </div>
+    </div>
+
+    <div class="section" id="ai-summary-section" style="${pr.ai_summary ? '' : 'display:none'}">
+      <div class="section-header">
+        <h3>AI Summary</h3>
+        ${pr.ai_summary_date ? `<span class="badge badge-gray">${timeAgo(pr.ai_summary_date)}</span>` : ''}
+      </div>
+      <div id="ai-summary-content" class="markdown-body" style="padding:16px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:14px;line-height:1.7;color:var(--text)">
+        ${pr.ai_summary ? marked.parse(pr.ai_summary) : ''}
+      </div>
+    </div>
+
+    <div class="section" id="live-summarize-section" style="display:none">
+      <div class="section-header">
+        <h3>Summarize Output</h3>
+        <span id="live-summarize-status" class="running-indicator"><span class="running-dot"></span> Running...</span>
+      </div>
+      <div class="live-log-content" id="live-summarize-content"></div>
+      <div class="live-log-footer" id="live-summarize-footer">0 lines</div>
     </div>
 
     <div class="section" id="live-review-section" style="display:none">

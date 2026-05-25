@@ -90,6 +90,15 @@ function getDb() {
     CREATE INDEX IF NOT EXISTS idx_pr_github_open ON pr_github(is_open);
   `);
 
+  // Migrate: add ai_summary column
+  const prColsAll = _db.prepare("PRAGMA table_info(prs)").all().map(c => c.name);
+  if (!prColsAll.includes('ai_summary')) {
+    _db.exec(`ALTER TABLE prs ADD COLUMN ai_summary TEXT`);
+  }
+  if (!prColsAll.includes('ai_summary_date')) {
+    _db.exec(`ALTER TABLE prs ADD COLUMN ai_summary_date TEXT`);
+  }
+
   // Migrate: rename is_insider → is_member
   const prCols = _db.prepare("PRAGMA table_info(prs)").all().map(c => c.name);
   if (prCols.includes('is_insider')) {
@@ -531,6 +540,11 @@ function updatePrStatus(id, status) {
   db.prepare("UPDATE prs SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
 }
 
+function updatePrSummary(id, summary) {
+  const db = getDb();
+  db.prepare("UPDATE prs SET ai_summary = ?, ai_summary_date = datetime('now'), updated_at = datetime('now') WHERE id = ?").run(summary, id);
+}
+
 function updatePrTrackingPath(id, newPath, location) {
   const db = getDb();
   db.prepare("UPDATE prs SET tracking_file_path = ?, location = ?, updated_at = datetime('now') WHERE id = ?").run(newPath, location, id);
@@ -571,6 +585,7 @@ module.exports = {
   queryPrs,
   getFilterOptions,
   updatePrStatus,
+  updatePrSummary,
   updatePrTrackingPath,
   markPrNotOpen,
   markClosedPrs,
