@@ -77,7 +77,6 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       '- casual, friendly tone, like talking to a teammate. a bit excited and hyped about the merge.',
       '- use 1 or 2 relevant emojis MAX across the whole comment. examples: 🙌 🚀 ✨ 💚 🎉 🔥.',
       '- NO em dashes (—) or en dashes (–). use commas, periods, or parens instead.',
-      '- NO square brackets [] or angle brackets <> around step names, check names, or anything else. github tries to render those as markdown links / html and it looks broken. write step names as plain words, or wrap them in `backticks` if you want to set them apart.',
       '- address them by handle once.',
       '- call out one specific thing about this contribution (use the title or description).',
       '- no preamble like "here is the comment". no quotes around the output.',
