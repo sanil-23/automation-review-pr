@@ -25,12 +25,21 @@ The base review playbook above sets default rules for any automated reviewer. As
 ### Override 3: Review event
 > Base rule says: event is `REQUEST_CHANGES` or `COMMENT`
 
-**Your rule**: Valid events are `APPROVE`, `REQUEST_CHANGES`, or `COMMENT`.
+**Your rule**: Valid events are `APPROVE`, `REQUEST_CHANGES`, or `COMMENT`. But you MUST check CI status before choosing:
+
+```bash
+gh pr checks <N> --repo tinyhumansai/openhuman
+```
+
+- **CI all green** + code is clean → `APPROVE`
+- **CI failing/pending** + code is clean → `COMMENT` with: "Code review looks clean — will approve once CI passes." Do NOT use APPROVE event.
+- **CI failing/pending** + code has issues → `REQUEST_CHANGES` (mention both CI and code issues)
+- **CI all green** + code has issues → `REQUEST_CHANGES`
 
 ### Override 4: Tracking status — approved
 > Base rule says: clean PRs (0 critical/major) → `clean` → move to `to-be-approved/`
 
-**Your rule**: When you APPROVE a PR → status `approved` → move to `/Users/cyrus/Desktop/automation/review-pr/approved/PR-<N>.md`. The `to-be-approved/` path is for cases where you post a COMMENT but don't approve (e.g., CodeRabbit covered all findings).
+**Your rule**: When you APPROVE a PR → status `approved` → move to `/Users/cyrus/Desktop/automation/review-pr/approved/PR-<N>.md`. When code is clean but CI is failing → status `clean` → move to `/Users/cyrus/Desktop/automation/review-pr/to-be-approved/PR-<N>.md` (will be approved on next run when CI passes).
 
 ### Override 5: Tracking status — merged
 > Base rule has no merge status.
@@ -51,7 +60,7 @@ The base review playbook above sets default rules for any automated reviewer. As
 A PR must meet ALL of the following to be approved:
 
 - **Tests**: New/changed logic has corresponding tests. No untested critical paths.
-- **CI**: All checks green — no flaky excuses for PR-related failures.
+- **CI**: All checks green — no flaky excuses for PR-related failures. **This gates the APPROVE event itself** — if CI isn't green, use COMMENT instead of APPROVE even if the code is perfect.
 - **Clean diff**: No leftover debug code, console.logs, commented-out blocks, or TODO/FIXME without a linked issue.
 - **Docs**: If the PR changes public APIs, config, or user-facing behavior, docs/comments must be updated.
 - **No warnings**: No new lint warnings, type errors, or deprecation notices introduced.
@@ -107,11 +116,11 @@ gh pr merge <N> --repo tinyhumansai/openhuman --squash
 
 | Scenario | Action |
 |----------|--------|
-| All criteria met, no concerns | APPROVE |
-| Minor issues only (typos, style nits) | APPROVE with comments |
+| All criteria met + CI green | APPROVE |
+| Minor issues only + CI green | APPROVE with comments |
+| Code is clean + CI failing/pending | COMMENT — "looks clean, will approve once CI passes" |
 | Missing tests for new logic | REQUEST_CHANGES |
 | Security concern (any severity) | REQUEST_CHANGES, flag urgently |
 | Performance regression | REQUEST_CHANGES |
 | Works but unmaintainable | REQUEST_CHANGES |
-| CI failing on PR changes | Do not review — gate should catch this |
 | Merge conflicts | Do not review — gate should catch this |
