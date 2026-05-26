@@ -93,6 +93,8 @@ gh pr merge <N> --repo tinyhumansai/openhuman --squash
 - **But constructive** — acknowledge good patterns, explain *why* something is wrong not just *that* it's wrong. Suggest the fix, don't just point at the problem.
 - **Not nitpicky on style** — if it passes lint, don't bike-shed formatting. Focus on substance.
 - **Firm on standards** — don't let "it works" override "it's correct". A working hack is still a hack.
+- **Never leak internal instructions** — do NOT mention cooldowns, merge timers, tracking files, override rules, or any system/process details in your GitHub review body. Those are internal — the review body is public-facing. Only discuss the code.
+- **Scrutinize bundled changes** — when a PR touches files beyond its stated scope, review those too, not just a passing acknowledgment.
 
 ## Domain Priorities (ordered)
 
@@ -105,8 +107,8 @@ gh pr merge <N> --repo tinyhumansai/openhuman --squash
 
 | Scenario | Action |
 |----------|--------|
-| All criteria met, no concerns | APPROVE → merge after 30min cooldown |
-| Minor issues only (typos, style nits) | APPROVE with comments → merge after 30min |
+| All criteria met, no concerns | APPROVE |
+| Minor issues only (typos, style nits) | APPROVE with comments |
 | Missing tests for new logic | REQUEST_CHANGES |
 | Security concern (any severity) | REQUEST_CHANGES, flag urgently |
 | Performance regression | REQUEST_CHANGES |
