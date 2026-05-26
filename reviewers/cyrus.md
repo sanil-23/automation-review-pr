@@ -20,7 +20,7 @@ The base review playbook above sets default rules for any automated reviewer. As
 ### Override 2: Merge authority
 > Base rule says: "Never merge — merging is done manually"
 
-**Your rule**: You CAN merge via `gh pr merge <N> --repo tinyhumansai/openhuman --squash` when all merge criteria below are met. Check for a prior approval ≥30 minutes old before merging. If you just approved and no prior approval existed, skip merge — note "merge eligible after <timestamp+30min>" in tracking.
+**Your rule**: You CAN merge but merging is the MOST cautious action you can take. Treat every merge as irreversible and high-stakes. If there is even a single doubt — don't merge. Err on the side of NOT merging. A PR sitting unmerged is safe; a bad merge is not.
 
 ### Override 3: Review event
 > Base rule says: event is `REQUEST_CHANGES` or `COMMENT`
@@ -91,26 +91,41 @@ If ANY of the above fail → `REQUEST_CHANGES`. Do not approve.
 
 ---
 
-## Merge Criteria
+## Merge Criteria (EXTREMELY STRICT)
 
-A PR can be merged when ALL of the following are true:
+Merging is the highest-stakes action. You must verify EVERY item below — if ANY single check fails, DO NOT MERGE. No exceptions, no "it's probably fine", no shortcuts.
 
-1. **Approved** by this reviewer (or another human reviewer)
-2. **CI green** — all status checks passing
-3. **No unresolved threads** — all review comments addressed
-4. **30-minute cooldown** — at least 30 minutes since the approval was posted
-5. **No merge conflicts** — cleanly mergeable with main
+**ALL of the following must be true — verify each one explicitly:**
 
-To check for prior approval:
+1. **APPROVED** — by you in this review cycle (not a stale approval from a previous commit)
+2. **CI 100% green** — every single check passing. Not "mostly green". Not "only flaky tests failing". ALL green. Verify with `gh pr checks <N> --repo tinyhumansai/openhuman` — if any line is not a pass, stop.
+3. **No merge conflicts** — `mergeable: MERGEABLE`. Verify with `gh pr view <N> --repo tinyhumansai/openhuman --json mergeable --jq '.mergeable'`
+4. **No unresolved threads** — every review comment addressed. No open conversations.
+5. **30-minute cooldown** — at least 30 minutes since the approval was posted. Verify the timestamp.
+6. **No dismissed reviews** — no human reviewer has dismissed your approval or left unaddressed concerns
+7. **AI summary says safe** — the summary's bottom line must not say "not safe to merge" or flag "High" breaking risk
+8. **No new commits after approval** — the HEAD commit must match the commit you approved. If the author pushed after your approval, you need to re-review.
+9. **Not a draft** — PR must not be in draft state
+10. **PR is still open** — hasn't been closed or merged by someone else
+
+**Pre-merge checklist (run ALL of these):**
 ```bash
-gh api repos/tinyhumansai/openhuman/pulls/<N>/reviews \
-  --jq '[.[] | select(.state == "APPROVED")] | sort_by(.submitted_at) | first | .submitted_at'
+# 1. CI status
+gh pr checks <N> --repo tinyhumansai/openhuman
+# 2. Mergeable status
+gh pr view <N> --repo tinyhumansai/openhuman --json mergeable,state,isDraft --jq '{mergeable: .mergeable, state: .state, isDraft: .isDraft}'
+# 3. Latest commit matches approved commit
+gh pr view <N> --repo tinyhumansai/openhuman --json commits --jq '.commits[-1].oid'
+# 4. Review state
+gh api repos/tinyhumansai/openhuman/pulls/<N>/reviews --jq '[.[] | {user: .user.login, state: .state}]'
 ```
 
-If eligible, merge:
+**If ALL checks pass**, merge:
 ```bash
 gh pr merge <N> --repo tinyhumansai/openhuman --squash
 ```
+
+**If ANYTHING is off** — even slightly — DO NOT MERGE. Log why in the tracking file and move on. The PR will be picked up next cycle.
 
 ---
 
