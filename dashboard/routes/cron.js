@@ -184,8 +184,16 @@ router.get('/status', (req, res) => {
   const schedule = parseCronSchedule(entry);
   const reviewer = getReviewerInfo();
 
+  // Check if cron/review processes are running
+  let running = false;
+  try {
+    execSync('pgrep -f "cron-pr-review.sh" >/dev/null 2>&1');
+    running = true;
+  } catch {}
+
   res.json({
     active: !!activeEntry,
+    running,
     schedule,
     human_schedule: cronToHuman(schedule),
     next_run: activeEntry ? getNextRun(schedule) : null,
@@ -290,6 +298,44 @@ router.get('/reviewers', (req, res) => {
   } catch {
     res.json([]);
   }
+});
+
+// POST /api/cron/stop — kill ALL running cron + review processes
+router.post('/stop', (req, res) => {
+  const killed = [];
+
+  try {
+    // Kill cron-pr-review.sh and all its children
+    const cronPids = execSync(`pgrep -f "cron-pr-review.sh" 2>/dev/null`, { encoding: 'utf-8' }).trim().split('\n').filter(Boolean);
+    for (const pid of cronPids) {
+      try { execSync(`pkill -TERM -P ${pid} 2>/dev/null; kill -TERM ${pid} 2>/dev/null`, { stdio: 'ignore', timeout: 3000 }); } catch {}
+      killed.push({ type: 'cron', pid });
+    }
+  } catch {}
+
+  try {
+    // Kill review-single.sh processes
+    const reviewPids = execSync(`pgrep -f "review-single.sh" 2>/dev/null`, { encoding: 'utf-8' }).trim().split('\n').filter(Boolean);
+    for (const pid of reviewPids) {
+      try { execSync(`pkill -TERM -P ${pid} 2>/dev/null; kill -TERM ${pid} 2>/dev/null`, { stdio: 'ignore', timeout: 3000 }); } catch {}
+      killed.push({ type: 'review', pid });
+    }
+  } catch {}
+
+  try {
+    // Kill any claude processes spawned by reviews
+    const claudePids = execSync(`pgrep -f "claude.*-p" 2>/dev/null`, { encoding: 'utf-8' }).trim().split('\n').filter(Boolean);
+    for (const pid of claudePids) {
+      try { process.kill(parseInt(pid), 'SIGTERM'); } catch {}
+      killed.push({ type: 'claude', pid });
+    }
+  } catch {}
+
+  // Clear status.json
+  const statusFile = path.join(BASE_DIR, 'status.json');
+  try { fs.writeFileSync(statusFile, JSON.stringify({ running: false })); } catch {}
+
+  res.json({ message: `Stopped ${killed.length} process(es)`, killed });
 });
 
 module.exports = router;

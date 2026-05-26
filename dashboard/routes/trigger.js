@@ -123,9 +123,6 @@ router.post('/discover', (req, res) => {
     return res.status(409).json({ error: 'Discovery is already running' });
   }
 
-  const logFile = path.join(LOGS_DIR, `review-${timestamp()}.log`);
-  const logStream = fs.createWriteStream(logFile, { flags: 'a' });
-
   const child = spawn('bash', [CRON_SCRIPT], {
     cwd: BASE_DIR,
     env: { ...process.env, PATH: process.env.PATH },
@@ -136,7 +133,7 @@ router.post('/discover', (req, res) => {
     pid: child.pid,
     type: 'discover',
     startedAt: new Date().toISOString(),
-    logFile,
+    logFile: null,
     logLines: [],
     exitCode: null,
     done: false,
@@ -151,7 +148,6 @@ router.post('/discover', (req, res) => {
 
   let stdoutBuf = '';
   child.stdout.on('data', (chunk) => {
-    logStream.write(chunk);
     stdoutBuf += chunk.toString();
     const lines = stdoutBuf.split('\n');
     stdoutBuf = lines.pop();
@@ -160,7 +156,6 @@ router.post('/discover', (req, res) => {
 
   let stderrBuf = '';
   child.stderr.on('data', (chunk) => {
-    logStream.write(chunk);
     stderrBuf += chunk.toString();
     const lines = stderrBuf.split('\n');
     stderrBuf = lines.pop();
@@ -170,7 +165,6 @@ router.post('/discover', (req, res) => {
   child.on('close', (code) => {
     if (stdoutBuf) appendLine(stdoutBuf);
     if (stderrBuf) appendLine(`[stderr] ${stderrBuf}`);
-    logStream.end();
     job.exitCode = code;
     job.done = true;
     job.endedAt = new Date().toISOString();
@@ -180,7 +174,6 @@ router.post('/discover', (req, res) => {
 
   child.on('error', (err) => {
     appendLine(`[error] ${err.message}`);
-    logStream.end();
     job.done = true;
     job.exitCode = -1;
     job.endedAt = new Date().toISOString();
@@ -191,7 +184,6 @@ router.post('/discover', (req, res) => {
   res.json({
     jobId: 'discover',
     pid: child.pid,
-    logFile,
     message: 'Discovery started',
   });
 });

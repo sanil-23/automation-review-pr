@@ -408,7 +408,8 @@
       <h1>Cron Management <span>PR Review Automation</span></h1>
       <div class="header-actions">
         <a href="/" class="btn btn-sm">Dashboard</a>
-        <button class="btn btn-sm btn-primary" onclick="runNow()">Run Now</button>
+        <button class="btn btn-sm btn-danger" id="btn-stop" onclick="stopAll()" style="display:none">Stop All</button>
+        <button class="btn btn-sm btn-primary" id="btn-run" onclick="runNow()">Run Now</button>
       </div>
     </div>
   </header>
@@ -618,6 +619,7 @@
         jobStartTime = Date.now();
         toast('Cron run triggered');
         showLiveRun();
+        updateButtons(true);
         startJobPolling();
       } catch (e) {
         toast('Failed to trigger run', 'error');
@@ -644,6 +646,7 @@
       if (jobPollInterval) { clearInterval(jobPollInterval); jobPollInterval = null; }
       activeJobId = null;
       jobStartTime = null;
+      updateButtons(false);
     }
 
     function startJobPolling() {
@@ -684,6 +687,24 @@
       } catch (e) {
         console.error('Poll job error', e);
       }
+    }
+
+    async function stopAll() {
+      try {
+        const res = await fetch('/api/cron/stop', { method: 'POST' });
+        const data = await res.json();
+        toast(`${data.message}`);
+        hideLiveRun();
+        updateButtons(false);
+        setTimeout(loadHistory, 2000);
+      } catch (e) {
+        toast('Failed to stop', 'error');
+      }
+    }
+
+    function updateButtons(running) {
+      document.getElementById('btn-stop').style.display = running ? 'inline-flex' : 'none';
+      document.getElementById('btn-run').style.display = running ? 'none' : 'inline-flex';
     }
 
     async function showLiveLog() {
@@ -758,6 +779,11 @@
         const preset = btn.getAttribute('onclick').match(/'(.+)'/)[1];
         btn.classList.toggle('active', preset === s.schedule);
       });
+
+      // Show stop button if processes are running (even from crontab)
+      if (s.running && !activeJobId) {
+        updateButtons(true);
+      }
 
       // Reviewer
       renderReviewer(s.reviewer);
@@ -878,6 +904,7 @@
           activeJobId = discoverJob.jobId;
           jobStartTime = new Date(discoverJob.startedAt).getTime();
           showLiveRun();
+          updateButtons(true);
           startJobPolling();
         }
       } catch {}
