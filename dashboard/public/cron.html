@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cron Management — PR Review</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .cron-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .cron-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    .cron-card h3 {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .cron-status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .cron-status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .cron-status-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .cron-status-dot.active {
+      background: var(--green);
+      box-shadow: 0 0 8px rgba(63, 185, 80, 0.4);
+    }
+
+    .cron-status-dot.inactive {
+      background: var(--red);
+      box-shadow: 0 0 8px rgba(248, 81, 73, 0.3);
+    }
+
+    .cron-status-text {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .cron-status-text.active { color: var(--green); }
+    .cron-status-text.inactive { color: var(--red); }
+
+    /* Toggle switch */
+    .toggle-switch {
+      position: relative;
+      width: 52px;
+      height: 28px;
+      cursor: pointer;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      left: 3px;
+      top: 3px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: rgba(63, 185, 80, 0.2);
+      border-color: var(--green);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(24px);
+      background: var(--green);
+    }
+
+    .detail-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-row:last-child { border-bottom: none; }
+
+    .detail-label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .detail-value {
+      font-size: 13px;
+      font-family: var(--mono);
+      color: var(--text);
+    }
+
+    .detail-value.accent { color: var(--accent); }
+
+    /* Schedule editor */
+    .schedule-editor {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 16px;
+    }
+
+    .schedule-input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      font-family: var(--mono);
+      font-size: 13px;
+      width: 160px;
+    }
+
+    .schedule-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .schedule-presets {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .preset-btn {
+      padding: 4px 10px;
+      font-size: 11px;
+      border-radius: 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: var(--font);
+    }
+
+    .preset-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .preset-btn.active {
+      border-color: var(--accent);
+      background: rgba(88, 166, 255, 0.1);
+      color: var(--accent);
+    }
+
+    /* Reviewer card */
+    .reviewer-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .reviewer-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--bg-tertiary);
+      border: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .reviewer-name {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .reviewer-role {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .reviewer-props {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .reviewer-prop {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 12px;
+      background: var(--bg);
+      border-radius: var(--radius);
+    }
+
+    .reviewer-prop-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .reviewer-prop-value {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .reviewer-prop-value.green { color: var(--green); }
+    .reviewer-prop-value.blue { color: var(--accent); }
+    .reviewer-prop-value.yellow { color: var(--yellow); }
+
+    /* History table */
+    .history-section {
+      margin-top: 24px;
+    }
+
+    .history-section h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .run-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .run-card:hover {
+      border-color: var(--accent);
+    }
+
+    .run-time {
+      min-width: 160px;
+    }
+
+    .run-time .date {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .run-time .ago {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .run-stats {
+      display: flex;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .run-stat {
+      text-align: center;
+    }
+
+    .run-stat-value {
+      font-size: 18px;
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+
+    .run-stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .run-duration {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text-muted);
+      min-width: 80px;
+      text-align: right;
+    }
+
+    .run-status {
+      min-width: 70px;
+      text-align: right;
+    }
+
+    /* Log modal */
+    .log-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .log-modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 90%;
+      max-width: 900px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .log-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .log-modal-header h3 { font-size: 16px; }
+
+    .log-modal-body {
+      padding: 16px 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .full-width { grid-column: 1 / -1; }
+
+    .no-runs {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 20px;
+      font-size: 14px;
+      z-index: 2000;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    .toast.success { border-color: var(--green); color: var(--green); }
+    .toast.error { border-color: var(--red); color: var(--red); }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>Cron Management <span>PR Review Automation</span></h1>
+      <div class="header-actions">
+        <a href="/" class="btn btn-sm">Dashboard</a>
+        <button class="btn btn-sm btn-primary" onclick="runNow()">Run Now</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Top grid: Status + Schedule | Reviewer Identity -->
+    <div class="cron-grid">
+      <!-- Status & Schedule -->
+      <div class="cron-card">
+        <h3>Cron Status</h3>
+        <div class="cron-status-row">
+          <div class="cron-status-indicator">
+            <div id="status-dot" class="cron-status-dot inactive"></div>
+            <span id="status-text" class="cron-status-text inactive">Loading...</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="cron-toggle" onchange="toggleCron()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="detail-rows">
+          <div class="detail-row">
+            <span class="detail-label">Schedule</span>
+            <span id="detail-schedule" class="detail-value accent">—</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Expression</span>
+            <span id="detail-expression" class="detail-value">—</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Next run</span>
+            <span id="detail-next" class="detail-value">—</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Script</span>
+            <span id="detail-script" class="detail-value" style="font-size:11px">—</span>
+          </div>
+        </div>
+
+        <div class="schedule-editor">
+          <input type="text" id="schedule-input" class="schedule-input" placeholder="0 * * * *">
+          <button class="btn btn-sm btn-primary" onclick="updateSchedule()">Update</button>
+        </div>
+
+        <div class="schedule-presets">
+          <button class="preset-btn" onclick="setPreset('*/15 * * * *')">Every 15m</button>
+          <button class="preset-btn" onclick="setPreset('*/30 * * * *')">Every 30m</button>
+          <button class="preset-btn" onclick="setPreset('0 * * * *')">Hourly</button>
+          <button class="preset-btn" onclick="setPreset('0 */2 * * *')">Every 2h</button>
+          <button class="preset-btn" onclick="setPreset('0 */6 * * *')">Every 6h</button>
+          <button class="preset-btn" onclick="setPreset('0 9-18 * * 1-5')">Work hours</button>
+        </div>
+      </div>
+
+      <!-- Reviewer Identity -->
+      <div class="cron-card">
+        <h3>Active Reviewer</h3>
+        <div id="reviewer-content">
+          <div class="no-runs">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Run Banner (hidden by default) -->
+    <div id="live-run" style="display:none">
+      <div class="cron-card" style="border-color:var(--accent); margin-bottom:20px">
+        <div style="display:flex; align-items:center; justify-content:space-between">
+          <div style="display:flex; align-items:center; gap:12px">
+            <div class="running-dot"></div>
+            <div>
+              <div style="font-weight:600; font-size:15px">Cron job running...</div>
+              <div id="live-run-info" style="font-size:13px; color:var(--text-muted)">Discovering eligible PRs</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px">
+            <span id="live-run-time" style="font-family:var(--mono); font-size:13px; color:var(--text-muted)">0s</span>
+            <button class="btn btn-sm" onclick="showLiveLog()">View Log</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Run History -->
+    <div class="history-section">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+        <h2>Run History</h2>
+        <span id="history-count" style="font-size:13px; color:var(--text-muted)"></span>
+      </div>
+      <div id="history-list">
+        <div class="no-runs">Loading run history...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log modal (hidden) -->
+  <div id="log-overlay" class="log-overlay" style="display:none" onclick="if(event.target===this)closeLog()">
+    <div class="log-modal">
+      <div class="log-modal-header">
+        <h3 id="log-title">Log</h3>
+        <button class="btn btn-sm" onclick="closeLog()">Close</button>
+      </div>
+      <div class="log-modal-body">
+        <div id="log-content" class="log-viewer"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- State ---
+    let cronStatus = null;
+    let activeJobId = null;
+    let jobStartTime = null;
+    let jobPollInterval = null;
+    let jobTimerInterval = null;
+
+    // --- Helpers ---
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function timeAgo(dateStr) {
+      if (!dateStr) return '';
+      const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+      return `${Math.floor(diff / 86400)}d ago`;
+    }
+
+    function formatDuration(s) {
+      if (!s && s !== 0) return '—';
+      if (s < 60) return `${s}s`;
+      if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+      return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '—';
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function toast(msg, type = 'success') {
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    // --- API calls ---
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/cron/status');
+        cronStatus = await res.json();
+        renderStatus();
+      } catch (e) {
+        console.error('Failed to load cron status', e);
+      }
+    }
+
+    async function toggleCron() {
+      try {
+        const res = await fetch('/api/cron/toggle', { method: 'POST' });
+        const data = await res.json();
+        toast(data.message);
+        await loadStatus();
+      } catch (e) {
+        toast('Failed to toggle cron', 'error');
+      }
+    }
+
+    async function updateSchedule() {
+      const val = document.getElementById('schedule-input').value.trim();
+      if (!val) return;
+      try {
+        const res = await fetch('/api/cron/schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ schedule: val }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          toast(err.error || 'Invalid schedule', 'error');
+          return;
+        }
+        toast('Schedule updated');
+        await loadStatus();
+      } catch (e) {
+        toast('Failed to update schedule', 'error');
+      }
+    }
+
+    function setPreset(expr) {
+      document.getElementById('schedule-input').value = expr;
+      updateSchedule();
+    }
+
+    async function runNow() {
+      try {
+        const res = await fetch('/api/trigger/discover', { method: 'POST' });
+        const data = await res.json();
+        activeJobId = data.jobId;
+        jobStartTime = Date.now();
+        toast('Cron run triggered');
+        showLiveRun();
+        startJobPolling();
+      } catch (e) {
+        toast('Failed to trigger run', 'error');
+      }
+    }
+
+    function showLiveRun() {
+      document.getElementById('live-run').style.display = 'block';
+      document.getElementById('live-run-info').textContent = 'Discovering eligible PRs...';
+      document.getElementById('live-run-time').textContent = '0s';
+
+      // Update elapsed time every second
+      if (jobTimerInterval) clearInterval(jobTimerInterval);
+      jobTimerInterval = setInterval(() => {
+        if (!jobStartTime) return;
+        const elapsed = Math.floor((Date.now() - jobStartTime) / 1000);
+        document.getElementById('live-run-time').textContent = formatDuration(elapsed);
+      }, 1000);
+    }
+
+    function hideLiveRun() {
+      document.getElementById('live-run').style.display = 'none';
+      if (jobTimerInterval) { clearInterval(jobTimerInterval); jobTimerInterval = null; }
+      if (jobPollInterval) { clearInterval(jobPollInterval); jobPollInterval = null; }
+      activeJobId = null;
+      jobStartTime = null;
+    }
+
+    function startJobPolling() {
+      if (jobPollInterval) clearInterval(jobPollInterval);
+      jobPollInterval = setInterval(pollJob, 3000);
+      pollJob(); // immediate first check
+    }
+
+    async function pollJob() {
+      if (!activeJobId) return;
+      try {
+        const res = await fetch('/api/trigger/jobs');
+        const jobs = await res.json();
+        const job = jobs.find(j => j.jobId === activeJobId);
+
+        if (!job) {
+          // Job gone — finished and cleaned up
+          hideLiveRun();
+          loadHistory();
+          return;
+        }
+
+        // Update info with last log line
+        if (job.lineCount > 0) {
+          const logRes = await fetch(`/api/trigger/log/${activeJobId}?after=${Math.max(0, job.lineCount - 3)}`);
+          const logData = await logRes.json();
+          if (logData.lines && logData.lines.length > 0) {
+            const lastLine = logData.lines[logData.lines.length - 1].replace(/^\[\d{2}:\d{2}:\d{2}\]\s*/, '');
+            document.getElementById('live-run-info').textContent = lastLine.slice(0, 100);
+          }
+        }
+
+        if (job.done) {
+          hideLiveRun();
+          toast(job.exitCode === 0 ? 'Cron run completed' : 'Cron run finished with errors', job.exitCode === 0 ? 'success' : 'error');
+          loadHistory();
+        }
+      } catch (e) {
+        console.error('Poll job error', e);
+      }
+    }
+
+    async function showLiveLog() {
+      if (!activeJobId) return;
+      try {
+        const res = await fetch(`/api/trigger/log/${activeJobId}?after=0`);
+        const data = await res.json();
+        const text = (data.lines || []).join('\n');
+        document.getElementById('log-overlay').style.display = 'flex';
+        document.getElementById('log-title').textContent = 'Live Log — Cron Run';
+        document.getElementById('log-content').textContent = text || 'Waiting for output...';
+      } catch (e) {
+        document.getElementById('log-content').textContent = 'Failed to load log';
+      }
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await fetch('/api/cron/history');
+        const runs = await res.json();
+        renderHistory(runs);
+      } catch (e) {
+        console.error('Failed to load history', e);
+      }
+    }
+
+    async function showLog(filename) {
+      document.getElementById('log-overlay').style.display = 'flex';
+      document.getElementById('log-title').textContent = filename;
+      document.getElementById('log-content').textContent = 'Loading...';
+      try {
+        const res = await fetch(`/api/cron/log/${encodeURIComponent(filename)}`);
+        const text = await res.text();
+        document.getElementById('log-content').textContent = text;
+      } catch (e) {
+        document.getElementById('log-content').textContent = 'Failed to load log';
+      }
+    }
+
+    function closeLog() {
+      document.getElementById('log-overlay').style.display = 'none';
+    }
+
+    // --- Renderers ---
+    function renderStatus() {
+      const s = cronStatus;
+      if (!s) return;
+
+      // Status indicator
+      const dot = document.getElementById('status-dot');
+      const text = document.getElementById('status-text');
+      const toggle = document.getElementById('cron-toggle');
+
+      dot.className = `cron-status-dot ${s.active ? 'active' : 'inactive'}`;
+      text.className = `cron-status-text ${s.active ? 'active' : 'inactive'}`;
+      text.textContent = s.active ? 'Active' : 'Inactive';
+      toggle.checked = s.active;
+
+      // Details
+      document.getElementById('detail-schedule').textContent = s.human_schedule || '—';
+      document.getElementById('detail-expression').textContent = s.schedule || '—';
+      document.getElementById('detail-next').textContent = s.next_run ? `${formatDate(s.next_run)} (${timeAgo(s.next_run)})` : '—';
+      document.getElementById('detail-script').textContent = s.script || '—';
+
+      // Schedule input
+      if (s.schedule) {
+        document.getElementById('schedule-input').placeholder = s.schedule;
+      }
+
+      // Highlight active preset
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        const preset = btn.getAttribute('onclick').match(/'(.+)'/)[1];
+        btn.classList.toggle('active', preset === s.schedule);
+      });
+
+      // Reviewer
+      renderReviewer(s.reviewer);
+    }
+
+    function renderReviewer(r) {
+      const el = document.getElementById('reviewer-content');
+      if (!r || !r.exists) {
+        el.innerHTML = `<div class="no-runs">No reviewer identity found at <code>${esc(r?.file || '?')}</code></div>`;
+        return;
+      }
+
+      // Parse some info from the content
+      const content = r.content || '';
+      const roleMatch = content.match(/\*\*Role\*\*:\s*(.+)/);
+      const authorityMatch = content.match(/\*\*Authority\*\*:\s*(.+)/);
+      const toneMatch = content.match(/\*\*Tone\*\*:\s*(.+)/);
+      const role = roleMatch ? roleMatch[1] : 'Reviewer';
+      const authority = authorityMatch ? authorityMatch[1] : 'Unknown';
+      const tone = toneMatch ? toneMatch[1] : 'Unknown';
+
+      // Count overrides
+      const overrideCount = (content.match(/### Override/g) || []).length;
+
+      // Count criteria
+      const criteriaLines = content.match(/^- \*\*/gm);
+      const criteriaCount = criteriaLines ? criteriaLines.length : 0;
+
+      el.innerHTML = `
+        <div class="reviewer-info">
+          <div class="reviewer-avatar">${esc(r.name[0].toUpperCase())}</div>
+          <div>
+            <div class="reviewer-name">${esc(r.name)}</div>
+            <div class="reviewer-role">${esc(role)}</div>
+          </div>
+        </div>
+        <div class="reviewer-props">
+          <div class="reviewer-prop">
+            <span class="reviewer-prop-label">Authority</span>
+            <span class="reviewer-prop-value green">${esc(authority)}</span>
+          </div>
+          <div class="reviewer-prop">
+            <span class="reviewer-prop-label">Tone</span>
+            <span class="reviewer-prop-value blue">${esc(tone)}</span>
+          </div>
+          <div class="reviewer-prop">
+            <span class="reviewer-prop-label">Rule Overrides</span>
+            <span class="reviewer-prop-value yellow">${overrideCount} active</span>
+          </div>
+          <div class="reviewer-prop">
+            <span class="reviewer-prop-label">Approval Criteria</span>
+            <span class="reviewer-prop-value">${criteriaCount} checks</span>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <span class="detail-label">Identity file: </span>
+          <span class="detail-value" style="font-size:11px">${esc(r.file)}</span>
+        </div>
+      `;
+    }
+
+    function renderHistory(runs) {
+      const el = document.getElementById('history-list');
+      const count = document.getElementById('history-count');
+
+      if (!runs || runs.length === 0) {
+        el.innerHTML = '<div class="no-runs">No cron runs found in logs/</div>';
+        count.textContent = '';
+        return;
+      }
+
+      count.textContent = `${runs.length} run(s)`;
+
+      el.innerHTML = runs.map(run => {
+        const statusBadges = {
+          success: '<span class="badge badge-green">Success</span>',
+          failed: '<span class="badge badge-red">Failed</span>',
+          no_prs: '<span class="badge badge-gray">No PRs</span>',
+          running: '<span class="badge badge-blue"><span class="running-dot" style="width:6px;height:6px;display:inline-block;margin-right:4px"></span>Running</span>',
+          unknown: '<span class="badge badge-gray">Unknown</span>',
+        };
+        const statusBadge = statusBadges[run.status] || statusBadges.unknown;
+
+        return `
+          <div class="run-card" onclick="showLog('${esc(run.log_file)}')">
+            <div class="run-time">
+              <div class="date">${formatDate(run.started_at)}</div>
+              <div class="ago">${timeAgo(run.started_at)}</div>
+            </div>
+            <div class="run-stats">
+              <div class="run-stat">
+                <div class="run-stat-value" style="color:var(--accent)">${run.discovered ?? '—'}</div>
+                <div class="run-stat-label">Discovered</div>
+              </div>
+              <div class="run-stat">
+                <div class="run-stat-value" style="color:var(--green)">${run.reviewed ?? '—'}</div>
+                <div class="run-stat-label">Reviewed</div>
+              </div>
+              <div class="run-stat">
+                <div class="run-stat-value" style="color:${(run.failed || 0) > 0 ? 'var(--red)' : 'var(--text-muted)'}">${run.failed ?? '—'}</div>
+                <div class="run-stat-label">Failed</div>
+              </div>
+            </div>
+            <div class="run-duration">${formatDuration(run.duration)}</div>
+            <div class="run-status">${statusBadge}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- Check for running jobs ---
+    async function checkRunningJobs() {
+      try {
+        const res = await fetch('/api/trigger/jobs');
+        const jobs = await res.json();
+        const discoverJob = jobs.find(j => j.type === 'discover' && !j.done);
+        if (discoverJob) {
+          activeJobId = discoverJob.jobId;
+          jobStartTime = new Date(discoverJob.startedAt).getTime();
+          showLiveRun();
+          startJobPolling();
+        }
+      } catch {}
+    }
+
+    // --- Init ---
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLog(); });
+    loadStatus();
+    loadHistory();
+    checkRunningJobs();
+
+    // Adaptive polling — faster when a job is running
+    let historyInterval = setInterval(loadHistory, 30000);
+    setInterval(loadStatus, 30000);
+    setInterval(() => {
+      // Speed up history polling when a job is active
+      const fast = !!activeJobId;
+      clearInterval(historyInterval);
+      historyInterval = setInterval(loadHistory, fast ? 5000 : 30000);
+    }, 10000);
+  </script>
+</body>
+</html>

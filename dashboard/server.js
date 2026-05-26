@@ -19,6 +19,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // API routes
 app.use('/api', require('./routes/api'));
 app.use('/api/trigger', require('./routes/trigger'));
+app.use('/api/cron', require('./routes/cron'));
 
 // SPA fallback — serve index.html for unmatched routes
 app.get('*', (req, res) => {
