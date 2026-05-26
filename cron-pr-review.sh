@@ -104,6 +104,37 @@ for PR in "${PRS[@]}"; do
     fi
 done
 
+# ─── Phase 3: Judge reviews + self-improve ───
+REVIEWED_COUNT=$((${#PRS[@]} - FAILED))
+if [ "${REVIEWED_COUNT}" -gt 0 ]; then
+    log "Phase 3: Judging reviews and self-improving..."
+    JUDGE_PROMPT="${SCRIPT_DIR}/judge-prompt.md"
+    if [ -f "${JUDGE_PROMPT}" ]; then
+        PR_LIST=$(printf "%s " "${PRS[@]}")
+        JUDGE_INPUT=$(cat "${JUDGE_PROMPT}" | sed "s/__PR_LIST__/${PR_LIST}/g" | sed "s/__TIMESTAMP__/${TIMESTAMP}/g")
+
+        JUDGE_LOG="${LOG_DIR}/judge-${TIMESTAMP}.log"
+        JUDGE_START=$(date +%s)
+        claude -p "${JUDGE_INPUT}" \
+            --allowedTools "Bash,Read,Write" \
+            >"${JUDGE_LOG}" 2>&1 || log "  Judge run failed"
+        JUDGE_END=$(date +%s)
+        JUDGE_DURATION=$((JUDGE_END - JUDGE_START))
+        log "  Judge completed in ${JUDGE_DURATION}s"
+
+        # Check if identity was modified
+        if git diff --quiet "${SCRIPT_DIR}/reviewers/" 2>/dev/null; then
+            log "  No identity changes made"
+        else
+            log "  Identity updated — changes will be committed"
+        fi
+    else
+        log "  Judge prompt not found, skipping"
+    fi
+else
+    log "Phase 3: Skipping judge (no successful reviews)"
+fi
+
 # ─── Git: commit, pull, push (once at the end) ───
 log "Git: Committing and pushing review outputs..."
 cd "${SCRIPT_DIR}"
