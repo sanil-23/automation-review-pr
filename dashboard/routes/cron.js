@@ -155,8 +155,15 @@ function parseCronLogs() {
             run.status = 'success';
           }
         } else {
-          // No CRON_META, no "Done" — still running
-          run.status = 'running';
+          // No CRON_META, no "Done" — check if file is still being written to
+          const stat = fs.statSync(path.join(LOGS_DIR, file));
+          const ageMs = Date.now() - stat.mtimeMs;
+          if (ageMs > 5 * 60 * 1000) {
+            // Not modified in 5+ minutes — stalled/failed
+            run.status = 'failed';
+          } else {
+            run.status = 'running';
+          }
         }
       }
 

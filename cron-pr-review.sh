@@ -57,7 +57,9 @@ log "Found ${#PRS[@]} eligible PR(s): ${PRS[*]}"
 # ─── Git: pull latest before reviews ───
 log "Git: Pulling latest changes..."
 cd "${SCRIPT_DIR}"
-git pull --rebase origin main
+git stash --quiet 2>/dev/null || true
+git pull --rebase origin main || log "Git: Pull failed, continuing anyway"
+git stash pop --quiet 2>/dev/null || true
 
 # ─── Phase 2: Review PRs in parallel via review-single.sh ───
 log "Phase 2: Launching reviews in parallel..."
@@ -107,8 +109,10 @@ log "Git: Committing and pushing review outputs..."
 cd "${SCRIPT_DIR}"
 git add -A
 git commit -m "Cron review: ${#PRS[@]} PR(s) — ${TIMESTAMP}" || log "Nothing to commit"
-git pull --rebase origin main
-git push origin main
+git stash --quiet 2>/dev/null || true
+git pull --rebase origin main || log "Git: Pull failed, continuing anyway"
+git stash pop --quiet 2>/dev/null || true
+git push origin main || log "Git: Push failed"
 log "Git: Pushed to origin/main"
 
 # Cleanup old logs (keep last 7 days)
