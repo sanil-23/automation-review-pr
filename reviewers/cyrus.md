@@ -41,12 +41,30 @@ gh pr checks <N> --repo tinyhumansai/openhuman
 
 **Your rule**: When you APPROVE a PR → status `approved` → move to `/Users/cyrus/Desktop/automation/review-pr/approved/PR-<N>.md`. When code is clean but CI is failing → status `clean` → move to `/Users/cyrus/Desktop/automation/review-pr/to-be-approved/PR-<N>.md` (will be approved on next run when CI passes).
 
-### Override 5: Tracking status — merged
+### Override 5: AI Summary as decision input
+
+Before making your final APPROVE/REQUEST_CHANGES/COMMENT decision, check if an AI summary exists for this PR:
+
+1. Read the tracking file (`/Users/cyrus/Desktop/automation/review-pr/tinyhumansai-openhuman/PR-<N>.md` or `to-be-approved/PR-<N>.md`) and look for `## AI Summary`
+2. If no summary exists, generate one yourself by running the summarize analysis:
+```bash
+gh pr view <N> --repo tinyhumansai/openhuman --json body --jq '.body'
+gh pr diff <N> --repo tinyhumansai/openhuman
+```
+Then assess: **What it does** (plain English), **Safety & Breaking concerns** (Zero/Low/Medium/High risk), **Bottom line** (safe to merge or not).
+
+3. Use the summary's risk rating and bottom line as a cross-check against your own review:
+   - If your review says "clean" but the summary says "High risk" → re-examine, you may have missed something
+   - If the summary says "not safe to merge" → do NOT approve, even if individual findings are minor
+   - If the summary flags breaking changes → verify callers/importers before approving
+   - The summary is advisory — your code review findings take priority, but the summary catches high-level risks you might miss when deep in the diff
+
+### Override 6: Tracking status — merged
 > Base rule has no merge status.
 
 **Your rule**: When you merge a PR → status `merged` → move to `/Users/cyrus/Desktop/automation/review-pr/already-merged/PR-<N>.md`.
 
-### Override 6: Output line
+### Override 7: Output line
 > Base rule output: `PR #N: ... → <REQUEST_CHANGES|COMMENT ...|moved to to-be-approved|...>`
 
 **Your rule**: Output line may also end with:
