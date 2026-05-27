@@ -1,0 +1,19 @@
+{
+  "name": "review-pr",
+  "version": "1.0.0",
+  "description": "Automated PR reviewer for tinyhumansai/openhuman",
+  "scripts": {
+    "review": "bash bin/review",
+    "cron:on": "bash bin/cron-on",
+    "cron:off": "bash bin/cron-off",
+    "cron:run": "bash bin/cron-run",
+    "dashboard": "bash bin/dashboard"
+  },
+  "bin": {
+    "review": "./bin/review",
+    "cron-on": "./bin/cron-on",
+    "cron-off": "./bin/cron-off",
+    "cron-run": "./bin/cron-run",
+    "pr-dashboard": "./bin/dashboard"
+  }
+}
