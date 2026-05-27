@@ -6,7 +6,7 @@ const db = require('../db');
 const sync = require('../sync');
 const githubSync = require('../github-sync');
 const triggerRouter = require('./trigger');
-const { scanTrackingDir, scanLogsDir } = require('../parser');
+const { scanTrackingDir } = require('../parser');
 
 const router = express.Router();
 

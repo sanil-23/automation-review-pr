@@ -5,8 +5,8 @@
 set -euo pipefail
 
 # Paths
-SCRIPT_DIR="/Users/cyrus/Desktop/automation/review-pr"
-REPO_DIR="/Users/cyrus/Desktop/Code/tinyhuman/openhuman.ai/openhuman"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="${REPO_DIR:-/Users/cyrus/Desktop/Code/tinyhuman/openhuman.ai/openhuman}"
 LOG_DIR="${SCRIPT_DIR}/logs"
 DISCOVER_PROMPT="${SCRIPT_DIR}/discover-prompt.md"
 TIMESTAMP=$(date +"%Y-%m-%d-%H%M")
@@ -122,12 +122,20 @@ done
 # ─── Phase 3: Batch judge every 25 reviews ───
 REVIEWED_COUNT=$((${#PRS[@]} - FAILED))
 COUNTER_FILE="${SCRIPT_DIR}/.review-counter"
-PREV_COUNT=0
-if [ -f "${COUNTER_FILE}" ]; then
-    PREV_COUNT=$(cat "${COUNTER_FILE}" 2>/dev/null || echo "0")
-fi
-NEW_COUNT=$((PREV_COUNT + REVIEWED_COUNT))
-echo "${NEW_COUNT}" > "${COUNTER_FILE}"
+COUNTER_LOCK="/tmp/review-counter.lock"
+# Atomic counter update with lock
+(
+    mkdir "${COUNTER_LOCK}" 2>/dev/null || sleep 1 && mkdir "${COUNTER_LOCK}" 2>/dev/null || true
+    PREV_COUNT=0
+    if [ -f "${COUNTER_FILE}" ]; then
+        PREV_COUNT=$(cat "${COUNTER_FILE}" 2>/dev/null || echo "0")
+    fi
+    NEW_COUNT=$((PREV_COUNT + REVIEWED_COUNT))
+    echo "${NEW_COUNT}" > "${COUNTER_FILE}.tmp" && mv "${COUNTER_FILE}.tmp" "${COUNTER_FILE}"
+    rmdir "${COUNTER_LOCK}" 2>/dev/null || true
+)
+PREV_COUNT=$(($(cat "${COUNTER_FILE}" 2>/dev/null || echo "0") - REVIEWED_COUNT))
+NEW_COUNT=$(cat "${COUNTER_FILE}" 2>/dev/null || echo "0")
 log "Review counter: ${PREV_COUNT} + ${REVIEWED_COUNT} = ${NEW_COUNT} (triggers batch judge at 25)"
 
 BATCH_JUDGE_THRESHOLD=${BATCH_JUDGE_THRESHOLD:-25}

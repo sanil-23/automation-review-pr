@@ -27,8 +27,8 @@ if ! mkdir "${LOCK_FILE}" 2>/dev/null; then
 fi
 trap 'rmdir "${LOCK_FILE}" 2>/dev/null' EXIT
 
-SCRIPT_DIR="/Users/cyrus/Desktop/automation/review-pr"
-REPO_DIR="/Users/cyrus/Desktop/Code/tinyhuman/openhuman.ai/openhuman"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="${REPO_DIR:-/Users/cyrus/Desktop/Code/tinyhuman/openhuman.ai/openhuman}"
 PARTS_DIR="${SCRIPT_DIR}/prompt-parts"
 STATUS_FILE="${SCRIPT_DIR}/status.json"
 

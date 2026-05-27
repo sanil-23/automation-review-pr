@@ -86,7 +86,10 @@ function getDb() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_prs_status ON prs(status);
+    CREATE INDEX IF NOT EXISTS idx_prs_created ON prs(created_at);
+    CREATE INDEX IF NOT EXISTS idx_prs_author ON prs(author);
     CREATE INDEX IF NOT EXISTS idx_cycles_pr ON review_cycles(pr_id);
+    CREATE INDEX IF NOT EXISTS idx_cycles_pr_num ON review_cycles(pr_id, cycle_number DESC);
     CREATE INDEX IF NOT EXISTS idx_pr_github_open ON pr_github(is_open);
   `);
 
@@ -255,8 +258,9 @@ function getPrsWithLatestCycle() {
       rc.action_taken
     FROM prs p
     LEFT JOIN pr_github g ON g.pr_id = p.id
-    LEFT JOIN review_cycles rc ON rc.pr_id = p.id
-      AND rc.cycle_number = (SELECT MAX(rc2.cycle_number) FROM review_cycles rc2 WHERE rc2.pr_id = p.id)
+    LEFT JOIN review_cycles rc ON rc.pr_id = p.id AND rc.id = (
+      SELECT rc2.id FROM review_cycles rc2 WHERE rc2.pr_id = p.id ORDER BY rc2.cycle_number DESC LIMIT 1
+    )
     ORDER BY p.id DESC
   `).all();
 }
@@ -509,10 +513,12 @@ function queryPrs(filters = {}) {
       rc.action_taken
     FROM prs p
     LEFT JOIN pr_github g ON g.pr_id = p.id
-    LEFT JOIN review_cycles rc ON rc.pr_id = p.id
-      AND rc.cycle_number = (SELECT MAX(rc2.cycle_number) FROM review_cycles rc2 WHERE rc2.pr_id = p.id)
+    LEFT JOIN review_cycles rc ON rc.pr_id = p.id AND rc.id = (
+      SELECT rc2.id FROM review_cycles rc2 WHERE rc2.pr_id = p.id ORDER BY rc2.cycle_number DESC LIMIT 1
+    )
     ${where}
     ORDER BY ${sortField} ${sortOrder}
+    LIMIT 500
   `;
 
   return db.prepare(sql).all(...params);
