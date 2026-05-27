@@ -1,0 +1,13 @@
+#!/bin/bash
+# Deactivate the cron job
+# Usage: cron-off
+
+set -euo pipefail
+
+CURRENT=$(crontab -l 2>/dev/null || echo "")
+CLEANED=$(echo "${CURRENT}" | grep -v "cron-pr-review.sh" || true)
+
+echo "${CLEANED}" | crontab -
+echo "Cron DEACTIVATED"
+echo ""
+echo "Verify: crontab -l | grep cron-pr"

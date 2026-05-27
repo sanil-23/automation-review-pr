@@ -1,0 +1,25 @@
+#!/bin/bash
+# Activate the hourly cron job
+# Usage: cron-on [schedule]
+#   e.g: cron-on           → hourly (default)
+#   e.g: cron-on "*/30 * * * *"  → every 30 min
+
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+CRON_SCRIPT="${SCRIPT_DIR}/cron-pr-review.sh"
+SCHEDULE="${1:-0 * * * *}"
+
+CURRENT=$(crontab -l 2>/dev/null || echo "")
+
+# Remove existing entry (active or commented)
+CLEANED=$(echo "${CURRENT}" | grep -v "cron-pr-review.sh" || true)
+
+# Add new entry
+NEW="${CLEANED}
+${SCHEDULE} ${CRON_SCRIPT}"
+
+echo "${NEW}" | crontab -
+echo "Cron ACTIVATED: ${SCHEDULE}"
+echo "Script: ${CRON_SCRIPT}"
+echo ""
+echo "Verify: crontab -l | grep cron-pr"
