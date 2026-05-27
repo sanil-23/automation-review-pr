@@ -119,10 +119,76 @@ for PR in "${PRS[@]}"; do
     fi
 done
 
-# ─── Phase 3: Aggregate judge findings + self-improve ───
-REVIEWED_COUNT=$((${#PRS[@]} - FAILED))
+# ─── Phase 3: Batch judge every 25 reviews ───
+COUNTER_FILE="${SCRIPT_DIR}/.review-counter"
+PREV_COUNT=0
+if [ -f "${COUNTER_FILE}" ]; then
+    PREV_COUNT=$(cat "${COUNTER_FILE}" 2>/dev/null || echo "0")
+fi
+NEW_COUNT=$((PREV_COUNT + REVIEWED_COUNT))
+echo "${NEW_COUNT}" > "${COUNTER_FILE}"
+log "Review counter: ${PREV_COUNT} + ${REVIEWED_COUNT} = ${NEW_COUNT} (triggers batch judge at 25)"
+
+BATCH_JUDGE_THRESHOLD=${BATCH_JUDGE_THRESHOLD:-25}
+if [ "${NEW_COUNT}" -ge "${BATCH_JUDGE_THRESHOLD}" ]; then
+    log "=== Batch Judge triggered (${NEW_COUNT} reviews since last judge) ==="
+
+    # Collect all PRs reviewed since last batch judge
+    BATCH_PR_LIST=$(find "${LOG_DIR}" -name "judge-PR-*.md" -newer "${COUNTER_FILE}.last" 2>/dev/null | grep -oE 'PR-[0-9]+' | grep -oE '[0-9]+' | sort -u | tr '\n' ' ')
+    if [ -z "${BATCH_PR_LIST}" ]; then
+        # Fallback: use recent tracking files
+        BATCH_PR_LIST=$(find "${SCRIPT_DIR}/tinyhumansai-openhuman" "${SCRIPT_DIR}/to-be-approved" "${SCRIPT_DIR}/approved" -name "PR-*.md" -mtime -7 2>/dev/null | grep -oE 'PR-[0-9]+' | grep -oE '[0-9]+' | sort -rn | head -25 | tr '\n' ' ')
+    fi
+
+    if [ -n "${BATCH_PR_LIST}" ]; then
+        BATCH_JUDGE_PROMPT="You are a batch quality judge for automated PR reviewer graycyrus on tinyhumansai/openhuman. ${NEW_COUNT} reviews have been posted since the last batch audit. Judge them ALL.
+
+For each PR in: ${BATCH_PR_LIST}
+
+Fetch the review and PR metadata:
+\`\`\`bash
+gh api repos/tinyhumansai/openhuman/pulls/<N>/reviews --jq '.[] | select(.user.login == \"graycyrus\") | {state: .state, body: .body}'
+gh pr view <N> --repo tinyhumansai/openhuman --json title,additions,deletions,changedFiles
+gh pr checks <N> --repo tinyhumansai/openhuman --json name,bucket --jq '[.[] | select(.bucket != \"pass\" and .bucket != \"skipping\")] | length'
+\`\`\`
+
+Score each: Accuracy (0-10), Depth (0-10), Tone (0-10), Decision correct?
+Flag: hallucinations, system prompt leaks (cooldowns, tracking files, merge timers, internal paths), emoji, approving over human CHANGES_REQUESTED, approving with failing/cancelled CI, rubber-stamp re-reviews.
+
+Find PATTERNS across multiple reviews (not one-offs).
+
+Read the reviewer identity:
+\`\`\`bash
+cat ${SCRIPT_DIR}/reviewers/cyrus.md
+\`\`\`
+
+If patterns found (3+ reviews), update cyrus.md. NEVER remove/weaken security rules — write proposals to logs/ instead.
+
+Write report to: ${LOG_DIR}/batch-judge-${TIMESTAMP}.md
+Write improvement signals to: ${LOG_DIR}/improvement-history.md (append)"
+
+        BATCH_LOG="${LOG_DIR}/batch-judge-${TIMESTAMP}.log"
+        BATCH_START=$(date +%s)
+        claude -p "${BATCH_JUDGE_PROMPT}" \
+            --model "${MODEL_JUDGE:-haiku}" \
+            --max-budget-usd 0.25 \
+            --allowedTools "Bash,Read,Write" \
+            >"${BATCH_LOG}" 2>&1 || log "  Batch judge failed"
+        BATCH_END=$(date +%s)
+        log "  Batch judge completed in $((BATCH_END - BATCH_START))s"
+
+        # Reset counter
+        echo "0" > "${COUNTER_FILE}"
+        touch "${COUNTER_FILE}.last"
+        log "  Counter reset to 0"
+    else
+        log "  No PRs found for batch judge — skipping"
+    fi
+fi
+
+# ─── Phase 4: Aggregate per-PR judge findings + self-improve ───
 if [ "${REVIEWED_COUNT}" -gt 0 ]; then
-    log "Phase 3: Aggregating judge findings and self-improving..."
+    log "Phase 4: Aggregating per-PR judge findings..."
     JUDGE_PROMPT="${SCRIPT_DIR}/judge-prompt.md"
     if [ -f "${JUDGE_PROMPT}" ]; then
         PR_LIST=$(printf "%s " "${PRS[@]}")
