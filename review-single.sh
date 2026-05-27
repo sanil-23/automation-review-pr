@@ -342,9 +342,10 @@ if [ -f "${JUDGE_SINGLE_PROMPT}" ]; then
     JUDGE_START=$(date +%s)
 
     # Determine complexity label
+    TOTAL_DIFF=${TOTAL_DIFF:-0}; FILE_COUNT=${FILE_COUNT:-0}
     if [ "${IS_SECURITY}" = "true" ]; then
         PR_COMPLEXITY="security"
-    elif [ "${TOTAL_DIFF}" -ge 200 ] || [ "${FILE_COUNT}" -ge 8 ]; then
+    elif [ "${TOTAL_DIFF}" -ge 200 ] 2>/dev/null || [ "${FILE_COUNT}" -ge 8 ] 2>/dev/null; then
         PR_COMPLEXITY="complex"
     elif [ "${HAS_LOGIC_CHANGES}" = "true" ]; then
         PR_COMPLEXITY="medium"
@@ -352,12 +353,18 @@ if [ -f "${JUDGE_SINGLE_PROMPT}" ]; then
         PR_COMPLEXITY="simple"
     fi
 
+    # Ensure TIMESTAMP is set (not set when run manually outside cron)
+    TIMESTAMP=${TIMESTAMP:-$(date +"%Y-%m-%d-%H%M")}
+    # Sanitize variables for sed (remove newlines)
+    SAFE_FILE_COUNT=$(echo "${FILE_COUNT}" | tr -d '\n')
+    SAFE_TOTAL_DIFF=$(echo "${TOTAL_DIFF}" | tr -d '\n')
+
     JUDGE_INPUT=$(cat "${JUDGE_SINGLE_PROMPT}" \
         | sed "s/__PR_NUMBER__/${PR}/g" \
         | sed "s/__MODEL_USED__/${REVIEW_MODEL}/g" \
         | sed "s/__PR_COMPLEXITY__/${PR_COMPLEXITY}/g" \
-        | sed "s/__FILE_COUNT__/${FILE_COUNT}/g" \
-        | sed "s/__TOTAL_DIFF__/${TOTAL_DIFF}/g" \
+        | sed "s/__FILE_COUNT__/${SAFE_FILE_COUNT}/g" \
+        | sed "s/__TOTAL_DIFF__/${SAFE_TOTAL_DIFF}/g" \
         | sed "s/__CI_STATUS__/${CI_STATUS}/g" \
         | sed "s/__TIMESTAMP__/${TIMESTAMP}/g")
 
