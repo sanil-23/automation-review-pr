@@ -1,39 +1,15 @@
 #!/bin/bash
-# Activate the PR review scheduler (macOS launchd)
-# Usage: cron-on [minutes]
-#   e.g: cron-on         → every 60 min (default)
-#   e.g: cron-on 30      → every 30 min
-#   e.g: cron-on 15      → every 15 min
-
-set -euo pipefail
-PLIST="$HOME/Library/LaunchAgents/com.graycyrus.pr-review.plist"
-LABEL="com.graycyrus.pr-review"
-
-MINUTES="${1:-60}"
-SECONDS_INTERVAL=$((MINUTES * 60))
-
-if [ ! -f "${PLIST}" ]; then
-    echo "ERROR: plist not found at ${PLIST}"
-    exit 1
-fi
-
-# Update the interval in the plist
-/usr/libexec/PlistBuddy -c "Set :StartInterval ${SECONDS_INTERVAL}" "${PLIST}" 2>/dev/null
-
-# Unload if already loaded, then load
-launchctl bootout "gui/$(id -u)/${LABEL}" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "${PLIST}"
-
-# Convert to human readable
-if [ "${MINUTES}" -eq 60 ]; then
-    HUMAN="every hour"
-elif [ "${MINUTES}" -lt 60 ]; then
-    HUMAN="every ${MINUTES} min"
-else
-    HUMAN="every $((MINUTES / 60)) hours"
-fi
-
-echo "Scheduler ACTIVATED: ${HUMAN} (${SECONDS_INTERVAL}s)"
-echo "Using macOS launchd (no full disk access needed)"
+# NOTE: Automated scheduling (crontab/launchd) is disabled on this machine
+# because macOS blocks background processes from accessing ~/Desktop.
+#
+# Use these instead:
+#   npm run cron:run       — run a full cycle now
+#   npm run review -- 2750 — review a single PR
+#   Dashboard "Run Now"    — trigger from the web UI
+#
+echo "Automated cron is not available (macOS Desktop permissions)."
 echo ""
-echo "Verify: launchctl print gui/$(id -u)/${LABEL} | head -5"
+echo "Use instead:"
+echo "  npm run cron:run         — run full cycle now"
+echo "  npm run review -- <PR>   — review a single PR"
+echo "  Dashboard 'Run Now'      — http://localhost:3847/cron.html"
