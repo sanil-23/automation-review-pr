@@ -49,12 +49,17 @@ log "Found ${OPEN_COUNT} open PR(s) — proceeding with discovery"
 # ─── Phase 1: Discover eligible PRs ───
 log "Phase 1: Discovering eligible PRs..."
 
+DISCOVER_ERR="${LOG_DIR}/discover-${TIMESTAMP}.err"
 PR_JSON=$(claude -p "$(cat "${DISCOVER_PROMPT}")" \
     --model "${MODEL_DISCOVER:-haiku}" \
-    --max-budget-usd 0.10 \
+    --max-budget-usd 0.50 \
     --allowedTools "Bash,Read" \
     --add-dir "${REPO_DIR}" \
-    2>/dev/null) || { log "Discovery timed out or failed"; exit 0; }
+    2>"${DISCOVER_ERR}") || {
+    log "Discovery failed — check ${DISCOVER_ERR}"
+    cat "${DISCOVER_ERR}" >> "${LOG_FILE}" 2>/dev/null
+    exit 0
+}
 
 PR_NUMBERS=$(echo "${PR_JSON}" | grep -oE '\[[ 0-9,]*\]' | head -1)
 
