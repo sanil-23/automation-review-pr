@@ -771,14 +771,17 @@
       document.getElementById('detail-script').textContent = s.script || '—';
 
       // Schedule input
-      if (s.schedule) {
-        document.getElementById('schedule-input').placeholder = s.schedule;
+      if (s.interval_seconds) {
+        document.getElementById('schedule-input').placeholder = Math.round(s.interval_seconds / 60);
       }
 
       // Highlight active preset
       document.querySelectorAll('.preset-btn').forEach(btn => {
-        const preset = btn.getAttribute('onclick').match(/'(.+)'/)[1];
-        btn.classList.toggle('active', preset === s.schedule);
+        const match = btn.getAttribute('onclick').match(/\((\d+)\)/);
+        if (match) {
+          const presetMin = parseInt(match[1]);
+          btn.classList.toggle('active', s.interval_seconds && presetMin === Math.round(s.interval_seconds / 60));
+        }
       });
 
       // Show stop button if processes are running (even from crontab)
