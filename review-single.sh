@@ -87,9 +87,10 @@ echo ""
 
 # Fetch diff stat
 echo "[Pre-check] Fetching diff stat..."
-DIFF_STAT=$(gh pr diff "${PR}" --repo tinyhumansai/openhuman --stat 2>/dev/null || echo "")
+DIFF_STAT=$(gh pr diff "${PR}" --repo tinyhumansai/openhuman --stat 2>/dev/null || true)
 DIFF_SUMMARY=$(echo "${DIFF_STAT}" | tail -1)
-FILE_COUNT=$(echo "${DIFF_STAT}" | grep -c '|' || echo "0")
+FILE_COUNT=$(echo "${DIFF_STAT}" | grep -c '|' || true)
+FILE_COUNT=${FILE_COUNT:-0}
 echo "  ${FILE_COUNT} files changed — ${DIFF_SUMMARY}"
 echo ""
 
@@ -183,8 +184,10 @@ echo "  CI status:     ${CI_STATUS}"
 echo ""
 
 # === Model routing based on PR complexity ===
-DIFF_LINES=$(echo "${DIFF_SUMMARY}" | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo "0")
-DIFF_DELS=$(echo "${DIFF_SUMMARY}" | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo "0")
+DIFF_LINES=$(echo "${DIFF_SUMMARY}" | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || true)
+DIFF_DELS=$(echo "${DIFF_SUMMARY}" | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || true)
+DIFF_LINES=${DIFF_LINES:-0}; DIFF_DELS=${DIFF_DELS:-0}
+FILE_COUNT=${FILE_COUNT:-0}
 TOTAL_DIFF=$((DIFF_LINES + DIFF_DELS))
 
 # Check for security signals (labels, CVE/GHSA in title or body)
@@ -201,10 +204,10 @@ fi
 if [ "${IS_SECURITY}" = "true" ]; then
     REVIEW_MODEL="${MODEL_REVIEW_COMPLEX:-sonnet}"
     echo "[Model] Security PR → ${REVIEW_MODEL}"
-elif [ "${TOTAL_DIFF}" -ge 200 ]; then
+elif [ "${TOTAL_DIFF}" -ge 200 ] 2>/dev/null; then
     REVIEW_MODEL="${MODEL_REVIEW_COMPLEX:-sonnet}"
     echo "[Model] Large PR (${TOTAL_DIFF} lines) → ${REVIEW_MODEL}"
-elif [ "${FILE_COUNT}" -ge 8 ]; then
+elif [ "${FILE_COUNT}" -ge 8 ] 2>/dev/null; then
     REVIEW_MODEL="${MODEL_REVIEW_COMPLEX:-sonnet}"
     echo "[Model] Many files (${FILE_COUNT}) → ${REVIEW_MODEL}"
 elif [ "${HAS_DEP_CHANGES}" = "true" ]; then
