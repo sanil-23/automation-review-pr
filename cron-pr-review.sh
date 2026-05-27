@@ -69,6 +69,13 @@ while IFS= read -r pr; do
 done < <(echo "${PR_NUMBERS}" | tr -d '[]' | tr ',' '\n' | tr -d ' ' | grep -v '^$')
 log "Found ${#PRS[@]} eligible PR(s): ${PRS[*]}"
 
+# Limit reviews per cycle (remaining PRs picked up next cycle)
+MAX_REVIEWS=${MAX_REVIEWS:-5}
+if [ "${#PRS[@]}" -gt "${MAX_REVIEWS}" ]; then
+    log "Capping to ${MAX_REVIEWS} reviews this cycle (${#PRS[@]} eligible, rest next cycle)"
+    PRS=("${PRS[@]:0:${MAX_REVIEWS}}")
+fi
+
 # ─── Git: pull latest before reviews ───
 log "Git: Pulling latest changes..."
 cd "${SCRIPT_DIR}"
