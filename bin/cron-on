@@ -1,39 +1,39 @@
 #!/bin/bash
-# Activate the cron job
+# Activate the PR review scheduler (macOS launchd)
 # Usage: cron-on [minutes]
 #   e.g: cron-on         → every 60 min (default)
 #   e.g: cron-on 30      → every 30 min
 #   e.g: cron-on 15      → every 15 min
-#   e.g: cron-on 120     → every 2 hours
 
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-CRON_SCRIPT="${SCRIPT_DIR}/cron-pr-review.sh"
+PLIST="$HOME/Library/LaunchAgents/com.graycyrus.pr-review.plist"
+LABEL="com.graycyrus.pr-review"
 
 MINUTES="${1:-60}"
+SECONDS_INTERVAL=$((MINUTES * 60))
 
-# Convert minutes to cron expression
-if [ "${MINUTES}" -eq 60 ]; then
-    SCHEDULE="0 * * * *"
-    HUMAN="every hour"
-elif [ "${MINUTES}" -lt 60 ]; then
-    SCHEDULE="*/${MINUTES} * * * *"
-    HUMAN="every ${MINUTES} min"
-else
-    HOURS=$((MINUTES / 60))
-    SCHEDULE="0 */${HOURS} * * *"
-    HUMAN="every ${HOURS} hours"
+if [ ! -f "${PLIST}" ]; then
+    echo "ERROR: plist not found at ${PLIST}"
+    exit 1
 fi
 
-CURRENT=$(crontab -l 2>/dev/null || echo "")
+# Update the interval in the plist
+/usr/libexec/PlistBuddy -c "Set :StartInterval ${SECONDS_INTERVAL}" "${PLIST}" 2>/dev/null
 
-# Remove existing entry (active or commented)
-CLEANED=$(echo "${CURRENT}" | grep -v "cron-pr-review.sh" || true)
+# Unload if already loaded, then load
+launchctl bootout "gui/$(id -u)/${LABEL}" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" "${PLIST}"
 
-# Add new entry
-NEW="${CLEANED}
-${SCHEDULE} ${CRON_SCRIPT}"
+# Convert to human readable
+if [ "${MINUTES}" -eq 60 ]; then
+    HUMAN="every hour"
+elif [ "${MINUTES}" -lt 60 ]; then
+    HUMAN="every ${MINUTES} min"
+else
+    HUMAN="every $((MINUTES / 60)) hours"
+fi
 
-echo "${NEW}" | crontab -
-echo "Cron ACTIVATED: ${HUMAN} (${SCHEDULE})"
-echo "Script: ${CRON_SCRIPT}"
+echo "Scheduler ACTIVATED: ${HUMAN} (${SECONDS_INTERVAL}s)"
+echo "Using macOS launchd (no full disk access needed)"
+echo ""
+echo "Verify: launchctl print gui/$(id -u)/${LABEL} | head -5"

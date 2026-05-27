@@ -451,17 +451,17 @@
         </div>
 
         <div class="schedule-editor">
-          <input type="text" id="schedule-input" class="schedule-input" placeholder="0 * * * *">
+          <input type="number" id="schedule-input" class="schedule-input" placeholder="60" min="5" step="5" style="width:100px">
+          <span style="font-size:13px;color:var(--text-muted)">minutes</span>
           <button class="btn btn-sm btn-primary" onclick="updateSchedule()">Update</button>
         </div>
 
         <div class="schedule-presets">
-          <button class="preset-btn" onclick="setPreset('*/15 * * * *')">Every 15m</button>
-          <button class="preset-btn" onclick="setPreset('*/30 * * * *')">Every 30m</button>
-          <button class="preset-btn" onclick="setPreset('0 * * * *')">Hourly</button>
-          <button class="preset-btn" onclick="setPreset('0 */2 * * *')">Every 2h</button>
-          <button class="preset-btn" onclick="setPreset('0 */6 * * *')">Every 6h</button>
-          <button class="preset-btn" onclick="setPreset('0 9-18 * * 1-5')">Work hours</button>
+          <button class="preset-btn" onclick="setPreset(15)">Every 15m</button>
+          <button class="preset-btn" onclick="setPreset(30)">Every 30m</button>
+          <button class="preset-btn" onclick="setPreset(60)">Hourly</button>
+          <button class="preset-btn" onclick="setPreset(120)">Every 2h</button>
+          <button class="preset-btn" onclick="setPreset(360)">Every 6h</button>
         </div>
       </div>
 
@@ -587,17 +587,17 @@
     }
 
     async function updateSchedule() {
-      const val = document.getElementById('schedule-input').value.trim();
-      if (!val) return;
+      const val = parseInt(document.getElementById('schedule-input').value, 10);
+      if (!val || val < 5) { toast('Minimum 5 minutes', 'error'); return; }
       try {
         const res = await authFetch('/api/cron/schedule', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ schedule: val }),
+          body: JSON.stringify({ minutes: val }),
         });
         if (!res.ok) {
           const err = await res.json();
-          toast(err.error || 'Invalid schedule', 'error');
+          toast(err.error || 'Failed', 'error');
           return;
         }
         toast('Schedule updated');
@@ -607,8 +607,8 @@
       }
     }
 
-    function setPreset(expr) {
-      document.getElementById('schedule-input').value = expr;
+    function setPreset(minutes) {
+      document.getElementById('schedule-input').value = minutes;
       updateSchedule();
     }
 

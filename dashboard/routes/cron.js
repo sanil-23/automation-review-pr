@@ -12,73 +12,51 @@ const CRON_SCRIPT = path.join(BASE_DIR, 'cron-pr-review.sh');
 const ENV_FILE = path.join(BASE_DIR, '.env');
 const REVIEWER_DIR = path.join(BASE_DIR, 'reviewers');
 
-const CRON_PATTERN = 'cron-pr-review.sh';
+const LAUNCHD_LABEL = 'com.graycyrus.pr-review';
+const LAUNCHD_PLIST = path.join(process.env.HOME || '/Users/cyrus', 'Library/LaunchAgents', `${LAUNCHD_LABEL}.plist`);
 
 // --- Helpers ---
 
-function getCrontab() {
+function getLaunchdStatus() {
+  const uid = process.getuid ? process.getuid() : 504;
   try {
-    return execSync('crontab -l 2>/dev/null', { encoding: 'utf-8' });
-  } catch {
-    return '';
-  }
-}
-
-function getCronEntry(crontab) {
-  const lines = crontab.split('\n');
-  return lines.find(l => l.includes(CRON_PATTERN) && !l.trimStart().startsWith('#'));
-}
-
-function getDisabledCronEntry(crontab) {
-  const lines = crontab.split('\n');
-  return lines.find(l => l.includes(CRON_PATTERN) && l.trimStart().startsWith('#'));
-}
-
-function parseCronSchedule(entry) {
-  if (!entry) return null;
-  const clean = entry.replace(/^#\s*/, '').trim();
-  const parts = clean.split(/\s+/);
-  if (parts.length < 5) return null;
-  return parts.slice(0, 5).join(' ');
-}
-
-function cronToHuman(schedule) {
-  if (!schedule) return 'Unknown';
-  const [min, hour, dom, mon, dow] = schedule.split(' ');
-  if (min === '*' && hour === '*') return 'Every minute';
-  if (min === '0' && hour === '*') return 'Every hour';
-  if (min.includes('/')) return `Every ${min.split('/')[1]} minutes`;
-  if (hour.includes('/')) return `Every ${hour.split('/')[1]} hours`;
-  if (min === '0' && hour !== '*') return `Daily at ${hour}:00`;
-  return schedule;
-}
-
-function getNextRun(schedule) {
-  if (!schedule) return null;
-  const [min, hour] = schedule.split(' ');
-  const now = new Date();
-
-  if (min === '0' && hour === '*') {
-    // Every hour at :00
-    const next = new Date(now);
-    next.setMinutes(0, 0, 0);
-    if (next <= now) next.setHours(next.getHours() + 1);
-    return next.toISOString();
-  }
-  if (min.includes('/')) {
-    const interval = parseInt(min.split('/')[1]);
-    const next = new Date(now);
-    const nextMin = Math.ceil(now.getMinutes() / interval) * interval;
-    if (nextMin >= 60) {
-      next.setHours(next.getHours() + 1);
-      next.setMinutes(0, 0, 0);
-    } else {
-      next.setMinutes(nextMin, 0, 0);
+    const out = execSync(`launchctl print gui/${uid}/${LAUNCHD_LABEL} 2>/dev/null`, { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] });
+    const active = !out.includes('could not find service');
+    // Extract interval
+    let interval = 3600;
+    const intervalMatch = out.match(/interval\s*=\s*(\d+)/i);
+    if (intervalMatch) interval = parseInt(intervalMatch[1]);
+    // Try from plist
+    if (interval === 3600 && fs.existsSync(LAUNCHD_PLIST)) {
+      try {
+        const plist = fs.readFileSync(LAUNCHD_PLIST, 'utf-8');
+        const m = plist.match(/<key>StartInterval<\/key>\s*<integer>(\d+)<\/integer>/);
+        if (m) interval = parseInt(m[1]);
+      } catch {}
     }
-    if (next <= now) next.setMinutes(next.getMinutes() + interval);
-    return next.toISOString();
+    return { active: true, interval };
+  } catch {
+    // Not loaded — check if plist exists
+    if (fs.existsSync(LAUNCHD_PLIST)) {
+      let interval = 3600;
+      try {
+        const plist = fs.readFileSync(LAUNCHD_PLIST, 'utf-8');
+        const m = plist.match(/<key>StartInterval<\/key>\s*<integer>(\d+)<\/integer>/);
+        if (m) interval = parseInt(m[1]);
+      } catch {}
+      return { active: false, interval };
+    }
+    return { active: false, interval: 3600 };
   }
-  return null;
+}
+
+function intervalToHuman(seconds) {
+  if (seconds < 60) return `Every ${seconds}s`;
+  const min = seconds / 60;
+  if (min < 60) return `Every ${min} minutes`;
+  const hr = min / 60;
+  if (hr === 1) return 'Every hour';
+  return `Every ${hr} hours`;
 }
 
 function getReviewerInfo() {
@@ -177,11 +155,7 @@ function parseCronLogs() {
 
 // GET /api/cron/status
 router.get('/status', (req, res) => {
-  const crontab = getCrontab();
-  const activeEntry = getCronEntry(crontab);
-  const disabledEntry = getDisabledCronEntry(crontab);
-  const entry = activeEntry || disabledEntry;
-  const schedule = parseCronSchedule(entry);
+  const launchd = getLaunchdStatus();
   const reviewer = getReviewerInfo();
 
   // Check if cron/review processes are running
@@ -191,13 +165,15 @@ router.get('/status', (req, res) => {
     running = true;
   } catch {}
 
+  const intervalMin = launchd.interval / 60;
+
   res.json({
-    active: !!activeEntry,
+    active: launchd.active,
     running,
-    schedule,
-    human_schedule: cronToHuman(schedule),
-    next_run: activeEntry ? getNextRun(schedule) : null,
-    cron_entry: entry ? entry.trim() : null,
+    schedule: `Every ${intervalMin} min`,
+    human_schedule: intervalToHuman(launchd.interval),
+    interval_seconds: launchd.interval,
+    next_run: null,
     script: CRON_SCRIPT,
     reviewer,
   });
@@ -205,63 +181,75 @@ router.get('/status', (req, res) => {
 
 // POST /api/cron/toggle
 router.post('/toggle', (req, res) => {
-  const crontab = getCrontab();
-  const activeEntry = getCronEntry(crontab);
-  const disabledEntry = getDisabledCronEntry(crontab);
-
-  let newCrontab;
-
-  if (activeEntry) {
-    // Disable: comment out the line
-    newCrontab = crontab.replace(activeEntry, '# ' + activeEntry);
-  } else if (disabledEntry) {
-    // Enable: uncomment the line
-    newCrontab = crontab.replace(disabledEntry, disabledEntry.replace(/^#\s*/, ''));
-  } else {
-    // No entry at all — add a default one
-    const defaultEntry = `0 * * * * ${CRON_SCRIPT}`;
-    newCrontab = crontab.trimEnd() + '\n' + defaultEntry + '\n';
-  }
+  const launchd = getLaunchdStatus();
+  const uid = process.getuid ? process.getuid() : 504;
 
   try {
-    const { spawnSync } = require('child_process');
-    const result = spawnSync('crontab', ['-'], { input: newCrontab, encoding: 'utf-8', timeout: 5000 });
-    if (result.status !== 0) throw new Error(result.stderr || 'crontab failed');
-    const nowActive = !activeEntry;
-    res.json({ active: nowActive, message: nowActive ? 'Cron activated' : 'Cron deactivated' });
+    if (launchd.active) {
+      // Disable
+      execSync(`launchctl bootout gui/${uid}/${LAUNCHD_LABEL} 2>/dev/null`, { stdio: 'ignore', timeout: 5000 });
+      res.json({ active: false, message: 'Scheduler deactivated' });
+    } else {
+      // Enable
+      if (!fs.existsSync(LAUNCHD_PLIST)) {
+        return res.status(500).json({ error: 'LaunchAgent plist not found' });
+      }
+      try { execSync(`launchctl bootout gui/${uid}/${LAUNCHD_LABEL} 2>/dev/null`, { stdio: 'ignore', timeout: 5000 }); } catch {}
+      execSync(`launchctl bootstrap gui/${uid} "${LAUNCHD_PLIST}"`, { encoding: 'utf-8', timeout: 5000 });
+      res.json({ active: true, message: 'Scheduler activated' });
+    }
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update crontab', details: err.message });
+    res.status(500).json({ error: 'Failed to toggle scheduler', details: err.message });
   }
 });
 
-// POST /api/cron/schedule — update the cron schedule
+// POST /api/cron/schedule — update the schedule interval
 router.post('/schedule', (req, res) => {
-  const { schedule } = req.body;
-  if (!schedule || !/^[\d\*\/\-,]+(\s+[\d\*\/\-,]+){4}$/.test(schedule.trim())) {
-    return res.status(400).json({ error: 'Invalid cron expression' });
+  // Accept minutes as a number or a cron expression (extract minutes from it)
+  let { schedule, minutes } = req.body;
+
+  if (minutes) {
+    minutes = parseInt(minutes, 10);
+  } else if (schedule) {
+    // Try to parse cron expression to extract minutes
+    const parts = schedule.trim().split(/\s+/);
+    if (parts[0].includes('/')) {
+      minutes = parseInt(parts[0].split('/')[1], 10);
+    } else if (parts[0] === '0' && parts[1] === '*') {
+      minutes = 60;
+    } else if (parts[1] && parts[1].includes('/')) {
+      minutes = parseInt(parts[1].split('/')[1], 10) * 60;
+    } else {
+      minutes = 60;
+    }
+  } else {
+    return res.status(400).json({ error: 'Provide minutes or schedule' });
   }
 
-  const crontab = getCrontab();
-  const activeEntry = getCronEntry(crontab);
-  const disabledEntry = getDisabledCronEntry(crontab);
-  const entry = activeEntry || disabledEntry;
+  if (!minutes || minutes < 5) {
+    return res.status(400).json({ error: 'Minimum interval is 5 minutes' });
+  }
 
-  const newEntry = `${schedule.trim()} ${CRON_SCRIPT}`;
-  let newCrontab;
+  const seconds = minutes * 60;
 
-  if (entry) {
-    newCrontab = crontab.replace(entry, newEntry);
-  } else {
-    newCrontab = crontab.trimEnd() + '\n' + newEntry + '\n';
+  // Update the plist
+  if (!fs.existsSync(LAUNCHD_PLIST)) {
+    return res.status(500).json({ error: 'LaunchAgent plist not found' });
   }
 
   try {
-    const { spawnSync } = require('child_process');
-    const result = spawnSync('crontab', ['-'], { input: newCrontab, encoding: 'utf-8', timeout: 5000 });
-    if (result.status !== 0) throw new Error(result.stderr || 'crontab failed');
-    res.json({ schedule: schedule.trim(), human: cronToHuman(schedule.trim()) });
+    execSync(`/usr/libexec/PlistBuddy -c "Set :StartInterval ${seconds}" "${LAUNCHD_PLIST}"`, { encoding: 'utf-8', timeout: 5000 });
+
+    // Reload if active
+    const uid = process.getuid ? process.getuid() : 504;
+    try {
+      execSync(`launchctl bootout gui/${uid}/${LAUNCHD_LABEL} 2>/dev/null`, { stdio: 'ignore', timeout: 5000 });
+      execSync(`launchctl bootstrap gui/${uid} "${LAUNCHD_PLIST}"`, { encoding: 'utf-8', timeout: 5000 });
+    } catch {}
+
+    res.json({ minutes, human: intervalToHuman(seconds) });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update crontab', details: err.message });
+    res.status(500).json({ error: 'Failed to update schedule', details: err.message });
   }
 });
 

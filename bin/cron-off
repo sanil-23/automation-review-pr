@@ -1,13 +1,16 @@
 #!/bin/bash
-# Deactivate the cron job
+# Deactivate the PR review scheduler
 # Usage: cron-off
 
 set -euo pipefail
+LABEL="com.graycyrus.pr-review"
 
+launchctl bootout "gui/$(id -u)/${LABEL}" 2>/dev/null && echo "Scheduler DEACTIVATED" || echo "Scheduler was not running"
+
+# Also remove any legacy crontab entry
 CURRENT=$(crontab -l 2>/dev/null || echo "")
-CLEANED=$(echo "${CURRENT}" | grep -v "cron-pr-review.sh" || true)
-
-echo "${CLEANED}" | crontab -
-echo "Cron DEACTIVATED"
-echo ""
-echo "Verify: crontab -l | grep cron-pr"
+if echo "${CURRENT}" | grep -q "cron-pr-review.sh"; then
+    CLEANED=$(echo "${CURRENT}" | grep -v "cron-pr-review.sh" || true)
+    echo "${CLEANED}" | crontab -
+    echo "Also removed legacy crontab entry"
+fi
