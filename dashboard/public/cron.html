@@ -567,7 +567,7 @@
     // --- API calls ---
     async function loadStatus() {
       try {
-        const res = await fetch('/api/cron/status');
+        const res = await authFetch('/api/cron/status');
         cronStatus = await res.json();
         renderStatus();
       } catch (e) {
@@ -724,7 +724,7 @@
 
     async function loadHistory() {
       try {
-        const res = await fetch('/api/cron/history');
+        const res = await authFetch('/api/cron/history');
         const runs = await res.json();
         renderHistory(runs);
       } catch (e) {
@@ -737,7 +737,7 @@
       document.getElementById('log-title').textContent = filename;
       document.getElementById('log-content').textContent = 'Loading...';
       try {
-        const res = await fetch(`/api/cron/log/${encodeURIComponent(filename)}`);
+        const res = await authFetch(`/api/cron/log/${encodeURIComponent(filename)}`);
         const text = await res.text();
         document.getElementById('log-content').textContent = text;
       } catch (e) {
