@@ -11,21 +11,29 @@ fi
 
 PR="$1"
 
-# Per-PR lock — prevent concurrent reviews of the same PR (macOS compatible)
-LOCK_FILE="/tmp/review-pr-${PR}.lock"
-# Clear stale locks older than 30 minutes
-if [ -d "${LOCK_FILE}" ]; then
-    LOCK_AGE=$(( $(date +%s) - $(stat -f %m "${LOCK_FILE}" 2>/dev/null || echo "0") ))
-    if [ "${LOCK_AGE}" -gt 1800 ]; then
-        rmdir "${LOCK_FILE}" 2>/dev/null || true
-        echo "Cleared stale lock for PR #${PR} (${LOCK_AGE}s old)"
+# Per-PR lock — prevent concurrent reviews of the same PR
+LOCK_DIR="/tmp/review-pr-${PR}.lock"
+PID_FILE="/tmp/review-pr-${PR}.pid"
+
+# Check if lock exists and if the owner process is still alive
+if [ -d "${LOCK_DIR}" ] && [ -f "${PID_FILE}" ]; then
+    OLD_PID=$(cat "${PID_FILE}" 2>/dev/null || echo "0")
+    if kill -0 "${OLD_PID}" 2>/dev/null; then
+        echo "PR #${PR} already being reviewed by PID ${OLD_PID} — skipping"
+        exit 0
+    else
+        # Process is dead — clean up stale lock
+        echo "Cleared stale lock for PR #${PR} (PID ${OLD_PID} is dead)"
+        rm -rf "${LOCK_DIR}" "${PID_FILE}"
     fi
+elif [ -d "${LOCK_DIR}" ]; then
+    # Lock dir exists but no PID file — stale from old version, clean it
+    rm -rf "${LOCK_DIR}"
 fi
-if ! mkdir "${LOCK_FILE}" 2>/dev/null; then
-    echo "PR #${PR} already being reviewed — skipping"
-    exit 0
-fi
-trap 'rmdir "${LOCK_FILE}" 2>/dev/null' EXIT
+
+mkdir "${LOCK_DIR}" 2>/dev/null || { echo "PR #${PR} already being reviewed — skipping"; exit 0; }
+echo $$ > "${PID_FILE}"
+trap 'rm -rf "${LOCK_DIR}" "${PID_FILE}" 2>/dev/null' EXIT
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="${REPO_DIR:-/Users/cyrus/Desktop/Code/tinyhuman/openhuman.ai/openhuman}"
