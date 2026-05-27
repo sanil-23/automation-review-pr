@@ -497,6 +497,75 @@ router.post('/dismiss-review/:prId/:reviewId', (req, res) => {
   }
 });
 
+// GET /api/trigger/merge-ready — list PRs that pass all merge preflight checks
+router.get('/merge-ready', (req, res) => {
+  // Get all PRs with approved/clean status
+  const candidates = db.queryPrs({ status: 'approved' });
+  const cleanPrs = db.queryPrs({ status: 'clean' });
+  const allCandidates = [...candidates, ...cleanPrs];
+
+  if (allCandidates.length === 0) {
+    return res.json({ ready: [], not_ready: [] });
+  }
+
+  const ready = [];
+  const notReady = [];
+
+  for (const pr of allCandidates) {
+    const checks = {};
+
+    // Draft check
+    checks.not_draft = pr.gh_is_draft !== 1;
+
+    // Mergeable
+    checks.no_conflicts = pr.mergeable === 'MERGEABLE';
+
+    // Has approval
+    checks.has_approval = pr.review_decision === 'APPROVED';
+
+    // CI green
+    checks.ci_green = pr.ci_fail === 0 && pr.ci_pending === 0 && pr.ci_total > 0;
+
+    // 30-min cooldown — check last approval time
+    let cooldown_ok = false;
+    let approved_at = null;
+    try {
+      const reviewsOut = execSync(
+        `gh api repos/${REPO}/pulls/${pr.id}/reviews --jq '[.[] | select(.state == "APPROVED")] | sort_by(.submitted_at) | last | .submitted_at'`,
+        { encoding: 'utf-8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }
+      ).trim();
+      if (reviewsOut && reviewsOut !== 'null') {
+        approved_at = reviewsOut;
+        const elapsed = Date.now() - new Date(reviewsOut).getTime();
+        cooldown_ok = elapsed >= 30 * 60 * 1000;
+      }
+    } catch {}
+    checks.cooldown_ok = cooldown_ok;
+
+    const allPass = checks.not_draft && checks.no_conflicts && checks.has_approval && checks.ci_green && checks.cooldown_ok;
+
+    const entry = {
+      id: pr.id,
+      title: pr.title,
+      author: pr.author,
+      status: pr.status,
+      additions: pr.additions || 0,
+      deletions: pr.deletions || 0,
+      approved_at,
+      checks,
+      ready: allPass,
+    };
+
+    if (allPass) {
+      ready.push(entry);
+    } else {
+      notReady.push(entry);
+    }
+  }
+
+  res.json({ ready, not_ready: notReady });
+});
+
 // POST /api/trigger/merge/:id — merge PR via gh pr merge --squash
 router.post('/merge/:id', (req, res) => {
   const prId = parseInt(req.params.id, 10);
