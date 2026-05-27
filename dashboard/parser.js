@@ -34,7 +34,7 @@ function parseTrackingFile(filePath) {
 
   // Extract metadata fields
   const fieldPatterns = {
-    author: /\*\*Author\*\*:\s*@?(.+)/,
+    author: /\*\*Author\*\*:\s*@?([\w.-]+)/,
     branch: /\*\*Branch\*\*:\s*(.+?)(?:\s*→\s*(.+))?$/,
     created_at: /\*\*Created\*\*:\s*(.+)/,
     url: /\*\*URL\*\*:\s*(.+)/,
