@@ -438,6 +438,40 @@ router.get('/merge-preflight/:id', (req, res) => {
   res.json({ pr: prId, checks, allPass, failCount });
 });
 
+// GET /api/trigger/blocking-reviews/:id — get reviews blocking merge
+router.get('/blocking-reviews/:id', (req, res) => {
+  const prId = parseInt(req.params.id, 10);
+  try {
+    const out = execSync(
+      `gh api repos/${REPO}/pulls/${prId}/reviews --jq '[.[] | select(.state == "CHANGES_REQUESTED") | {id: .id, user: .user.login, state: .state, submitted_at: .submitted_at, body: .body[0:200]}]'`,
+      { encoding: 'utf-8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] }
+    );
+    const reviews = JSON.parse(out);
+    res.json(reviews);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch reviews', details: err.message });
+  }
+});
+
+// POST /api/trigger/dismiss-review/:prId/:reviewId — dismiss a blocking review
+router.post('/dismiss-review/:prId/:reviewId', (req, res) => {
+  const prId = parseInt(req.params.prId, 10);
+  const reviewId = parseInt(req.params.reviewId, 10);
+  const message = req.body.message || 'Dismissed — issues addressed';
+
+  try {
+    const out = execSync(
+      `gh api repos/${REPO}/pulls/${prId}/reviews/${reviewId}/dismissals -X PUT -f message="${message}" -f event="DISMISS"`,
+      { encoding: 'utf-8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] }
+    );
+    console.log(`[trigger] Dismissed review ${reviewId} on PR #${prId}`);
+    res.json({ success: true, message: `Review ${reviewId} dismissed` });
+  } catch (err) {
+    console.error(`[trigger] Failed to dismiss review ${reviewId}: ${err.message}`);
+    res.status(500).json({ error: 'Failed to dismiss review', details: err.stderr || err.message });
+  }
+});
+
 // POST /api/trigger/merge/:id — merge PR via gh pr merge --squash
 router.post('/merge/:id', (req, res) => {
   const prId = parseInt(req.params.id, 10);

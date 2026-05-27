@@ -713,12 +713,17 @@ async function mergePr(prId, btn) {
     const data = await preflight.json();
 
     // 2. Build modal content
+    const hasApprovalFailing = data.checks.some(c => c.name === 'Has approval' && !c.pass);
+
     const checksRows = data.checks.map(c => {
       const badge = c.pass
         ? '<span class="badge badge-green">PASS</span>'
         : '<span class="badge badge-red">FAIL</span>';
       const detail = c.bucket && !c.pass ? `<span style="color:var(--text-muted);font-size:12px">(${c.bucket})</span>` : '';
-      return `<tr><td>${badge}</td><td>${esc(c.name)} ${detail}</td></tr>`;
+      const dismissBtn = (c.name === 'Has approval' && !c.pass)
+        ? `<button class="btn btn-sm btn-danger" style="margin-left:8px" onclick="dismissBlockingReviews(${prId})">Dismiss blocking reviews</button>`
+        : '';
+      return `<tr><td>${badge}</td><td>${esc(c.name)} ${detail}${dismissBtn}</td></tr>`;
     }).join('');
 
     const passCount = data.checks.filter(c => c.pass).length;
@@ -757,6 +762,43 @@ async function mergePr(prId, btn) {
     alert('Failed to fetch checks: ' + err.message);
     btn.disabled = false;
     btn.textContent = 'Merge';
+  }
+}
+
+async function dismissBlockingReviews(prId) {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Dismissing...';
+
+  try {
+    const res = await fetch(`${API}/api/trigger/blocking-reviews/${prId}`);
+    const reviews = await res.json();
+
+    if (!reviews.length) {
+      btn.textContent = 'No blocking reviews';
+      return;
+    }
+
+    let dismissed = 0;
+    for (const review of reviews) {
+      try {
+        await fetch(`${API}/api/trigger/dismiss-review/${prId}/${review.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: `Dismissed — issues addressed (was from ${review.user})` }),
+        });
+        dismissed++;
+      } catch {}
+    }
+
+    btn.textContent = `Dismissed ${dismissed} review(s)`;
+    btn.className = 'btn btn-sm btn-green';
+
+    // Re-run preflight after a short delay
+    setTimeout(() => mergePr(prId, document.querySelector(`[onclick*="mergePr(${prId}"]`) || btn), 1500);
+  } catch (err) {
+    btn.textContent = 'Failed';
+    btn.disabled = false;
   }
 }
 
