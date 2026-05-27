@@ -143,7 +143,25 @@ if [ "${REVIEWED_COUNT}" -gt 0 ]; then
         if git diff --quiet "${SCRIPT_DIR}/reviewers/" 2>/dev/null; then
             log "  No identity changes made"
         else
-            log "  Identity updated — changes will be committed"
+            # Safety check: verify security rules weren't weakened
+            SECURITY_KEYWORDS="security|injection|auth|secrets|vulnerability|CVE|backdoor|OWASP|supply chain|obfuscation"
+            REMOVED_SECURITY=$(git diff "${SCRIPT_DIR}/reviewers/cyrus.md" | grep "^-" | grep -iE "${SECURITY_KEYWORDS}" | grep -v "^---" || true)
+            if [ -n "${REMOVED_SECURITY}" ]; then
+                log "  SECURITY VIOLATION: Judge tried to remove security rules — reverting"
+                log "  Removed lines: ${REMOVED_SECURITY}"
+                git checkout "${SCRIPT_DIR}/reviewers/cyrus.md"
+                # Save the attempted change for audit
+                VIOLATION_LOG="${LOG_DIR}/security-violation-${TIMESTAMP}.md"
+                echo "# Security Rule Violation — ${TIMESTAMP}" > "${VIOLATION_LOG}"
+                echo "Judge attempted to remove these security-related lines:" >> "${VIOLATION_LOG}"
+                echo "${REMOVED_SECURITY}" >> "${VIOLATION_LOG}"
+            else
+                # Save audit trail of what changed
+                CHANGE_LOG="${LOG_DIR}/rule-changes-${TIMESTAMP}.md"
+                echo "# Rule Changes — ${TIMESTAMP}" > "${CHANGE_LOG}"
+                git diff "${SCRIPT_DIR}/reviewers/" >> "${CHANGE_LOG}" 2>/dev/null
+                log "  Identity updated — changes will be committed (audit: ${CHANGE_LOG})"
+            fi
         fi
     else
         log "  Judge prompt not found, skipping"
@@ -155,7 +173,8 @@ fi
 # ─── Git: commit, pull, push (once at the end) ───
 log "Git: Committing and pushing review outputs..."
 cd "${SCRIPT_DIR}"
-git add -A
+git add tinyhumansai-openhuman/ to-be-approved/ approved/ to-be-closed/ already-merged/ reviewers/ 2>/dev/null || true
+git add logs/*.md 2>/dev/null || true
 git commit -m "Cron review: ${#PRS[@]} PR(s) — ${TIMESTAMP}" || log "Nothing to commit"
 git stash --quiet 2>/dev/null || true
 git pull --rebase origin main || log "Git: Pull failed, continuing anyway"

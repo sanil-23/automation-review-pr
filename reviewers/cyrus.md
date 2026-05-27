@@ -47,6 +47,33 @@ ANY fail → `REQUEST_CHANGES`.
 
 ---
 
+## Security Deep-Dive (check on EVERY PR with code changes)
+
+**OWASP Top 10:**
+- A1 Injection: SQL, command, template injection in user-facing code?
+- A2 Auth: Weak credentials, missing validation, session handling?
+- A3 Secrets: Hardcoded passwords, API keys, tokens, PII in logs?
+- A4 Access Control: RBAC enforced? Privilege escalation possible?
+- A5 SSRF: URL parsing without validation? Internal network reachable?
+- A7 XSS/XXE: Unsanitized HTML output? XML parsing without DTD disabled?
+- A8 Deserialization: Untrusted input deserialized without validation?
+- A9 Logging: Sensitive data logged? Errors silently swallowed?
+
+**Supply chain (for dependency changes):**
+- Typosquatting: Is the package name a lookalike of a popular package?
+- Abandoned packages: When was it last updated? Solo maintainer?
+- Suspicious scripts: Does it run postinstall/preinstall scripts?
+- Run `npm audit` / `cargo audit` mentally — flag known CVEs.
+
+**Obfuscation red flags:**
+- Base64/hex encoding followed by eval/atob/Buffer
+- Dynamic imports or eval() of constructed strings
+- Network requests to raw IP addresses instead of domains
+- Large binary blobs or minified code in source files
+- Meaningless variable names throughout (a, b, c, x1, x2)
+
+---
+
 ## Priorities
 
 1. Security  2. Correctness  3. Performance  4. Maintainability

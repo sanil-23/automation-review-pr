@@ -480,11 +480,13 @@ router.get('/blocking-reviews/:id', (req, res) => {
 router.post('/dismiss-review/:prId/:reviewId', (req, res) => {
   const prId = parseInt(req.params.prId, 10);
   const reviewId = parseInt(req.params.reviewId, 10);
-  const message = (req.body.message || 'Dismissed — issues addressed').replace(/"/g, '\\"');
+  const message = (req.body.message || 'Dismissed — issues addressed').replace(/[^a-zA-Z0-9 _.,-]/g, '');
 
   try {
+    // Use --input with JSON to avoid shell injection entirely
+    const inputJson = JSON.stringify({ message, event: 'DISMISS' });
     const out = execSync(
-      `gh api repos/${REPO}/pulls/${prId}/reviews/${reviewId}/dismissals -X PUT -f message='${message}' -f event=DISMISS`,
+      `echo '${inputJson.replace(/'/g, "'\\''")}' | gh api repos/${REPO}/pulls/${prId}/reviews/${reviewId}/dismissals -X PUT --input -`,
       { encoding: 'utf-8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] }
     );
     console.log(`[trigger] Dismissed review ${reviewId} on PR #${prId}`);
@@ -507,6 +509,26 @@ router.post('/merge/:id', (req, res) => {
   if (!eligible) {
     return res.status(400).json({ error: `PR #${prId} is not eligible for merge (status: ${pr.status})` });
   }
+
+  // 30-min cooldown enforcement
+  try {
+    const reviewsOut = execSync(
+      `gh api repos/${REPO}/pulls/${prId}/reviews`,
+      { encoding: 'utf-8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] }
+    );
+    const reviews = JSON.parse(reviewsOut);
+    const approvals = reviews.filter(r => r.state === 'APPROVED').sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
+    if (approvals.length > 0) {
+      const latestApproval = new Date(approvals[0].submitted_at);
+      const cooldownMs = 30 * 60 * 1000;
+      const elapsed = Date.now() - latestApproval.getTime();
+      if (elapsed < cooldownMs) {
+        const remainingSec = Math.ceil((cooldownMs - elapsed) / 1000);
+        const remainingMin = Math.ceil(remainingSec / 60);
+        return res.status(400).json({ error: `30-min cooldown not elapsed — wait ${remainingMin} more minute(s)`, approved_at: approvals[0].submitted_at });
+      }
+    }
+  } catch {}
 
   try {
     const out = execSync(

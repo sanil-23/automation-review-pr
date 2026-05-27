@@ -519,6 +519,20 @@
   </div>
 
   <script>
+    // --- Auth ---
+    function getApiKey() {
+      let key = localStorage.getItem('api_key');
+      if (!key) { key = prompt('Enter API key (from .env):'); if (key) localStorage.setItem('api_key', key); }
+      return key;
+    }
+    function authHeaders() { const key = getApiKey(); return key ? { 'Authorization': `Bearer ${key}` } : {}; }
+    async function authFetch(url, opts = {}) {
+      opts.headers = { ...opts.headers, ...authHeaders() };
+      const res = await fetch(url, opts);
+      if (res.status === 401) { localStorage.removeItem('api_key'); alert('Invalid API key'); location.reload(); throw new Error('Unauthorized'); }
+      return res;
+    }
+
     // --- State ---
     let cronStatus = null;
     let activeJobId = null;
@@ -576,7 +590,7 @@
 
     async function toggleCron() {
       try {
-        const res = await fetch('/api/cron/toggle', { method: 'POST' });
+        const res = await authFetch('/api/cron/toggle', { method: 'POST' });
         const data = await res.json();
         toast(data.message);
         await loadStatus();
@@ -589,7 +603,7 @@
       const val = document.getElementById('schedule-input').value.trim();
       if (!val) return;
       try {
-        const res = await fetch('/api/cron/schedule', {
+        const res = await authFetch('/api/cron/schedule', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ schedule: val }),
@@ -613,7 +627,7 @@
 
     async function runNow() {
       try {
-        const res = await fetch('/api/trigger/discover', { method: 'POST' });
+        const res = await authFetch('/api/trigger/discover', { method: 'POST' });
         const data = await res.json();
         activeJobId = data.jobId;
         jobStartTime = Date.now();
@@ -658,7 +672,7 @@
     async function pollJob() {
       if (!activeJobId) return;
       try {
-        const res = await fetch('/api/trigger/jobs');
+        const res = await authFetch('/api/trigger/jobs');
         const jobs = await res.json();
         const job = jobs.find(j => j.jobId === activeJobId);
 
@@ -691,7 +705,7 @@
 
     async function stopAll() {
       try {
-        const res = await fetch('/api/cron/stop', { method: 'POST' });
+        const res = await authFetch('/api/cron/stop', { method: 'POST' });
         const data = await res.json();
         toast(`${data.message}`);
         hideLiveRun();
@@ -897,7 +911,7 @@
     // --- Check for running jobs ---
     async function checkRunningJobs() {
       try {
-        const res = await fetch('/api/trigger/jobs');
+        const res = await authFetch('/api/trigger/jobs');
         const jobs = await res.json();
         const discoverJob = jobs.find(j => j.type === 'discover' && !j.done);
         if (discoverJob) {

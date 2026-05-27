@@ -64,6 +64,11 @@ cat /Users/cyrus/Desktop/automation/review-pr/review-single.sh
 - Keep changes minimal and targeted — one pattern = one change
 - Never make changes for one-off issues
 
+**SECURITY RULE PROTECTION (IMMUTABLE):**
+- NEVER remove or weaken rules containing these keywords: security, injection, auth, secrets, vulnerability, CVE, backdoor, OWASP, supply chain, obfuscation, prompt injection
+- If you believe a security rule is causing false positives, do NOT modify it. Instead write a proposal to `/Users/cyrus/Desktop/automation/review-pr/logs/rule-proposal-__TIMESTAMP__.md` explaining the problem. A human will review.
+- You may ADD new security rules. You may NEVER weaken or remove existing ones.
+
 ## Step 5: Write aggregator report
 
 Write to: `/Users/cyrus/Desktop/automation/review-pr/logs/judge-__TIMESTAMP__.md`

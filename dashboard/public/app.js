@@ -1,5 +1,32 @@
 const API = '';
 
+// --- Auth ---
+function getApiKey() {
+  let key = localStorage.getItem('api_key');
+  if (!key) {
+    key = prompt('Enter API key (from .env):');
+    if (key) localStorage.setItem('api_key', key);
+  }
+  return key;
+}
+
+function authHeaders() {
+  const key = getApiKey();
+  return key ? { 'Authorization': `Bearer ${key}` } : {};
+}
+
+async function authFetch(url, opts = {}) {
+  opts.headers = { ...opts.headers, ...authHeaders() };
+  const res = await fetch(url, opts);
+  if (res.status === 401) {
+    localStorage.removeItem('api_key');
+    alert('Invalid API key — please re-enter');
+    location.reload();
+    throw new Error('Unauthorized');
+  }
+  return res;
+}
+
 // --- Utilities ---
 
 function timeAgo(dateStr) {
@@ -479,7 +506,7 @@ async function cancelReview(prId) {
   btn.textContent = 'Cancelling...';
 
   try {
-    const res = await fetch(`${API}/api/trigger/cancel/review-${prId}`, { method: 'POST' });
+    const res = await authFetch(`${API}/api/trigger/cancel/review-${prId}`, { method: 'POST' });
     const data = await res.json();
     if (res.ok || data.error === 'Job already finished') {
       btn.textContent = res.ok ? 'Cancelled' : 'Done';
@@ -506,7 +533,7 @@ async function triggerReview(prId, redirectToDetail) {
   btn.textContent = 'Starting...';
 
   try {
-    const res = await fetch(`${API}/api/trigger/review/${prId}`, { method: 'POST' });
+    const res = await authFetch(`${API}/api/trigger/review/${prId}`, { method: 'POST' });
     const data = await res.json();
     if (res.ok) {
       btn.textContent = 'Running...';
@@ -534,7 +561,7 @@ async function triggerSummarize(prId, btn) {
   btn.textContent = 'Summarizing...';
 
   try {
-    const res = await fetch(`${API}/api/trigger/summarize/${prId}`, { method: 'POST' });
+    const res = await authFetch(`${API}/api/trigger/summarize/${prId}`, { method: 'POST' });
     const data = await res.json();
     if (res.ok) {
       btn.textContent = 'Generating summary...';
@@ -568,7 +595,7 @@ function startSummarizeLogPolling(jobId, prId) {
 
   async function poll() {
     try {
-      const res = await fetch(`${API}/api/trigger/log/${jobId}?after=${_summarizeLinesSeen}`);
+      const res = await authFetch(`${API}/api/trigger/log/${jobId}?after=${_summarizeLinesSeen}`);
       if (!res.ok) return;
       const data = await res.json();
 
@@ -631,7 +658,7 @@ async function triggerDiscover() {
   }
 
   try {
-    const res = await fetch(`${API}/api/trigger/discover`, { method: 'POST' });
+    const res = await authFetch(`${API}/api/trigger/discover`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) {
       alert(data.error || 'Failed to start discovery');
@@ -648,7 +675,7 @@ async function approvePr(prId, btn) {
   btn.textContent = 'Checking...';
 
   try {
-    const res = await fetch(`${API}/api/trigger/approve/${prId}`, { method: 'POST' });
+    const res = await authFetch(`${API}/api/trigger/approve/${prId}`, { method: 'POST' });
     const data = await res.json();
 
     if (!res.ok) {
@@ -709,7 +736,7 @@ async function mergePr(prId, btn) {
 
   try {
     // 1. Fetch pre-flight checks
-    const preflight = await fetch(`${API}/api/trigger/merge-preflight/${prId}`);
+    const preflight = await authFetch(`${API}/api/trigger/merge-preflight/${prId}`);
     const data = await preflight.json();
 
     // 2. Build modal content
@@ -777,7 +804,7 @@ async function dismissBlockingReviews(prId) {
   btn.textContent = 'Dismissing...';
 
   try {
-    const res = await fetch(`${API}/api/trigger/blocking-reviews/${prId}`);
+    const res = await authFetch(`${API}/api/trigger/blocking-reviews/${prId}`);
     const reviews = await res.json();
 
     if (!reviews.length) {
@@ -788,7 +815,7 @@ async function dismissBlockingReviews(prId) {
     let dismissed = 0;
     for (const review of reviews) {
       try {
-        await fetch(`${API}/api/trigger/dismiss-review/${prId}/${review.id}`, {
+        await authFetch(`${API}/api/trigger/dismiss-review/${prId}/${review.id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: `Dismissed — issues addressed (was from ${review.user})` }),
@@ -816,7 +843,7 @@ async function executeMerge(prId) {
   }
 
   try {
-    const mergeRes = await fetch(`${API}/api/trigger/merge/${prId}`, { method: 'POST' });
+    const mergeRes = await authFetch(`${API}/api/trigger/merge/${prId}`, { method: 'POST' });
     const mergeData = await mergeRes.json();
 
     if (mergeRes.ok) {
@@ -853,7 +880,7 @@ async function unapprovePr(prId, btn) {
   btn.textContent = 'Unapproving...';
 
   try {
-    const res = await fetch(`${API}/api/trigger/unapprove/${prId}`, { method: 'POST' });
+    const res = await authFetch(`${API}/api/trigger/unapprove/${prId}`, { method: 'POST' });
     const data = await res.json();
 
     if (!res.ok) {
@@ -922,7 +949,7 @@ async function syncPr(prId, btn) {
 
 async function forceSync() {
   try {
-    const res = await fetch(`${API}/api/sync`, { method: 'POST' });
+    const res = await authFetch(`${API}/api/sync`, { method: 'POST' });
     const data = await res.json();
     alert(`Synced ${data.synced} PR files + GitHub`);
     location.reload();
@@ -980,7 +1007,7 @@ async function loadPrDetail() {
 
 async function checkAndStartLiveLog(prId) {
   try {
-    const jobsRes = await fetch(`${API}/api/trigger/jobs`);
+    const jobsRes = await authFetch(`${API}/api/trigger/jobs`);
     const jobs = await jobsRes.json();
     const jobId = `review-${prId}`;
     if (jobs[jobId]) {
@@ -991,7 +1018,7 @@ async function checkAndStartLiveLog(prId) {
 
 async function checkAndStartSummarizeLog(prId) {
   try {
-    const jobsRes = await fetch(`${API}/api/trigger/jobs`);
+    const jobsRes = await authFetch(`${API}/api/trigger/jobs`);
     const jobs = await jobsRes.json();
     const jobId = `summarize-${prId}`;
     const job = jobs[jobId];
@@ -1011,7 +1038,7 @@ function startLiveLogPolling(jobId) {
 
   async function poll() {
     try {
-      const res = await fetch(`${API}/api/trigger/log/${jobId}?after=${_liveLogLinesSeen}`);
+      const res = await authFetch(`${API}/api/trigger/log/${jobId}?after=${_liveLogLinesSeen}`);
       if (!res.ok) return;
 
       const data = await res.json();
