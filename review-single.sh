@@ -71,9 +71,9 @@ echo ""
 if [ -z "${CRON_MODE:-}" ] && [ -z "${DASHBOARD_MODE:-}" ]; then
     echo "[Git] Pulling latest changes..."
     cd "${SCRIPT_DIR}"
-    git stash --quiet 2>/dev/null || true
-    git pull --rebase origin main || echo "[Git] Pull failed, continuing anyway"
-    git stash pop --quiet 2>/dev/null || true
+    # Reset runtime files that cause merge conflicts
+    git checkout -- status.json 2>/dev/null || true
+    git pull --rebase origin main 2>/dev/null || echo "[Git] Pull failed, continuing anyway"
     echo ""
 fi
 
@@ -102,13 +102,14 @@ echo "  Labels: ${PR_LABELS:-none}"
 echo "  Review decision: ${PR_DECISION}"
 echo ""
 
-# Fetch diff stat
+# Fetch diff stat via GitHub API (gh pr diff --stat doesn't exist)
 echo "[Pre-check] Fetching diff stat..."
-DIFF_STAT=$(gh pr diff "${PR}" --repo tinyhumansai/openhuman --stat 2>/dev/null || true)
-DIFF_SUMMARY=$(echo "${DIFF_STAT}" | tail -1)
-FILE_COUNT=$(echo "${DIFF_STAT}" | grep -c '|' || true)
-FILE_COUNT=${FILE_COUNT:-0}
-echo "  ${FILE_COUNT} files changed — ${DIFF_SUMMARY}"
+DIFF_META=$(gh pr view "${PR}" --repo tinyhumansai/openhuman --json additions,deletions,changedFiles 2>/dev/null || echo "{}")
+DIFF_ADDITIONS=$(echo "${DIFF_META}" | jq -r '.additions // 0' 2>/dev/null || echo "0")
+DIFF_DELETIONS=$(echo "${DIFF_META}" | jq -r '.deletions // 0' 2>/dev/null || echo "0")
+FILE_COUNT=$(echo "${DIFF_META}" | jq -r '.changedFiles // 0' 2>/dev/null || echo "0")
+FILE_COUNT=${FILE_COUNT:-0}; DIFF_ADDITIONS=${DIFF_ADDITIONS:-0}; DIFF_DELETIONS=${DIFF_DELETIONS:-0}
+echo "  ${FILE_COUNT} files changed — +${DIFF_ADDITIONS} -${DIFF_DELETIONS}"
 echo ""
 
 # Check if this is a continuation review
@@ -135,11 +136,14 @@ else
     echo "[Pre-check] No linked issues found"
 fi
 
+# Fetch changed file names for dependency/logic detection
+CHANGED_FILES=$(gh pr diff "${PR}" --repo tinyhumansai/openhuman --name-only 2>/dev/null || true)
+
 # Check for dependency file changes
 HAS_DEP_CHANGES="false"
-if echo "${DIFF_STAT}" | grep -qE 'Cargo\.(toml|lock)|package\.json|pnpm-lock'; then
+if echo "${CHANGED_FILES}" | grep -qE 'Cargo\.(toml|lock)|package\.json|pnpm-lock'; then
     HAS_DEP_CHANGES="true"
-    DEP_FILES=$(echo "${DIFF_STAT}" | grep -oE '(Cargo\.(toml|lock)|package\.json|pnpm-lock\S+)' | tr '\n' ', ' || echo "")
+    DEP_FILES=$(echo "${CHANGED_FILES}" | grep -oE '(Cargo\.(toml|lock)|package\.json|pnpm-lock[^ ]*)' | tr '\n' ', ' || echo "")
     echo "[Pre-check] Dependency changes: ${DEP_FILES}"
 else
     echo "[Pre-check] No dependency changes"
@@ -147,9 +151,9 @@ fi
 
 # Check for logic file changes (not just config/docs/tests)
 HAS_LOGIC_CHANGES="false"
-if echo "${DIFF_STAT}" | grep -E '\.(rs|ts|tsx)\s' | grep -qvE '\.test\.|\.d\.ts|\.config\.'; then
+if echo "${CHANGED_FILES}" | grep -E '\.(rs|ts|tsx)$' | grep -qvE '\.test\.|\.d\.ts|\.config\.'; then
     HAS_LOGIC_CHANGES="true"
-    LOGIC_FILE_COUNT=$(echo "${DIFF_STAT}" | grep -E '\.(rs|ts|tsx)\s' | grep -cvE '\.test\.|\.d\.ts|\.config\.' || echo "0")
+    LOGIC_FILE_COUNT=$(echo "${CHANGED_FILES}" | grep -E '\.(rs|ts|tsx)$' | grep -cvE '\.test\.|\.d\.ts|\.config\.' || echo "0")
     echo "[Pre-check] Logic file changes: ${LOGIC_FILE_COUNT} files"
 else
     echo "[Pre-check] No logic file changes (config/docs/tests only)"
@@ -238,11 +242,7 @@ echo "  CI status:     ${CI_STATUS}"
 echo ""
 
 # === Model routing based on PR complexity ===
-DIFF_LINES=$(echo "${DIFF_SUMMARY}" | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || true)
-DIFF_DELS=$(echo "${DIFF_SUMMARY}" | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || true)
-DIFF_LINES=${DIFF_LINES:-0}; DIFF_DELS=${DIFF_DELS:-0}
-FILE_COUNT=${FILE_COUNT:-0}
-TOTAL_DIFF=$((DIFF_LINES + DIFF_DELS))
+TOTAL_DIFF=$((DIFF_ADDITIONS + DIFF_DELETIONS))
 
 # Check for security signals (labels, CVE/GHSA in title or body)
 IS_SECURITY="false"
