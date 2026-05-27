@@ -11,10 +11,13 @@ fi
 
 PR="$1"
 
-# Per-PR lock — prevent concurrent reviews of the same PR
+# Per-PR lock — prevent concurrent reviews of the same PR (macOS compatible)
 LOCK_FILE="/tmp/review-pr-${PR}.lock"
-exec 200>"${LOCK_FILE}"
-flock -n 200 || { echo "PR #${PR} already being reviewed — skipping"; exit 0; }
+if ! mkdir "${LOCK_FILE}" 2>/dev/null; then
+    echo "PR #${PR} already being reviewed — skipping"
+    exit 0
+fi
+trap 'rmdir "${LOCK_FILE}" 2>/dev/null' EXIT
 
 SCRIPT_DIR="/Users/cyrus/Desktop/automation/review-pr"
 REPO_DIR="/Users/cyrus/Desktop/Code/tinyhuman/openhuman.ai/openhuman"
