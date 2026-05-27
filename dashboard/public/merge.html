@@ -108,13 +108,12 @@
             <button class="btn btn-purple" onclick="mergeAll()">Merge All</button>
           </div>
           <table class="merge-table">
-            <thead><tr><th>PR</th><th>Title</th><th>Author</th><th>Diff</th><th>Checks</th><th>Approved</th><th>Action</th></tr></thead>
+            <thead><tr><th>PR</th><th>Title</th><th>Author</th><th>Checks</th><th>Approved</th><th>Action</th></tr></thead>
             <tbody>${data.ready.map(pr => `
               <tr>
                 <td class="pr-num"><a href="/pr.html?pr=${pr.id}">#${pr.id}</a></td>
-                <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(pr.title)}</td>
+                <td style="max-width:350px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(pr.title)}</td>
                 <td>${esc(pr.author)}</td>
-                <td class="diff-stat"><span class="add">+${pr.additions}</span> <span class="del">-${pr.deletions}</span></td>
                 <td><div class="check-grid">${checkDots(pr.checks)}</div></td>
                 <td style="font-size:12px;color:var(--text-muted)">${timeAgo(pr.approved_at)}</td>
                 <td><button class="btn btn-sm btn-purple" onclick="mergePr(${pr.id}, this)">Merge</button></td>
@@ -131,18 +130,22 @@
         blockedEl.innerHTML = `
           <div class="section-title" style="margin-top:32px">Blocked (${data.not_ready.length})</div>
           <table class="merge-table">
-            <thead><tr><th>PR</th><th>Title</th><th>Author</th><th>Diff</th><th>Checks</th><th>Blocker</th></tr></thead>
+            <thead><tr><th>PR</th><th>Title</th><th>Author</th><th>Checks</th><th>Blocker</th></tr></thead>
             <tbody>${data.not_ready.map(pr => {
               const blockers = Object.entries(pr.checks).filter(([,v]) => !v).map(([k]) => {
                 const labels = { not_draft: 'Draft', no_conflicts: 'Conflicts', has_approval: 'No approval', ci_green: 'CI failing', cooldown_ok: 'Cooldown' };
-                return labels[k] || k;
+                let label = labels[k] || k;
+                if (k === 'cooldown_ok' && pr.cooldown_remaining) {
+                  const min = Math.ceil(pr.cooldown_remaining / 60);
+                  label = min + 'm left';
+                }
+                return label;
               });
               return `
               <tr>
                 <td class="pr-num"><a href="/pr.html?pr=${pr.id}">#${pr.id}</a></td>
-                <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(pr.title)}</td>
+                <td style="max-width:350px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(pr.title)}</td>
                 <td>${esc(pr.author)}</td>
-                <td class="diff-stat"><span class="add">+${pr.additions}</span> <span class="del">-${pr.deletions}</span></td>
                 <td><div class="check-grid">${checkDots(pr.checks)}</div></td>
                 <td>${blockers.map(b => `<span class="badge badge-red">${b}</span>`).join(' ')}</td>
               </tr>`;

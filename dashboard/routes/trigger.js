@@ -529,6 +529,7 @@ router.get('/merge-ready', (req, res) => {
     // 30-min cooldown — check last approval time
     let cooldown_ok = false;
     let approved_at = null;
+    let cooldown_remaining = null;
     try {
       const reviewsOut = execSync(
         `gh api repos/${REPO}/pulls/${pr.id}/reviews --jq '[.[] | select(.state == "APPROVED")] | sort_by(.submitted_at) | last | .submitted_at'`,
@@ -537,7 +538,11 @@ router.get('/merge-ready', (req, res) => {
       if (reviewsOut && reviewsOut !== 'null') {
         approved_at = reviewsOut;
         const elapsed = Date.now() - new Date(reviewsOut).getTime();
-        cooldown_ok = elapsed >= 30 * 60 * 1000;
+        const cooldownMs = 30 * 60 * 1000;
+        cooldown_ok = elapsed >= cooldownMs;
+        if (!cooldown_ok) {
+          cooldown_remaining = Math.ceil((cooldownMs - elapsed) / 1000);
+        }
       }
     } catch {}
     checks.cooldown_ok = cooldown_ok;
@@ -552,6 +557,7 @@ router.get('/merge-ready', (req, res) => {
       additions: pr.additions || 0,
       deletions: pr.deletions || 0,
       approved_at,
+      cooldown_remaining,
       checks,
       ready: allPass,
     };
