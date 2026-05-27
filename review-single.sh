@@ -30,6 +30,7 @@ trap 'rmdir "${LOCK_FILE}" 2>/dev/null' EXIT
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="${REPO_DIR:-/Users/cyrus/Desktop/Code/tinyhuman/openhuman.ai/openhuman}"
 PARTS_DIR="${SCRIPT_DIR}/prompt-parts"
+LOG_DIR="${SCRIPT_DIR}/logs"
 STATUS_FILE="${SCRIPT_DIR}/status.json"
 
 export PATH="/Users/cyrus/.nvm/versions/node/v22.22.1/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH}"
@@ -375,7 +376,7 @@ echo "{\"pr\":${PR},\"running\":true,\"started\":\"${REVIEW_START}\"}" > "${STAT
 # Single Claude invocation
 CLAUDE_START=$(date +%s)
 echo "--- Claude review started at $(date -u +"%Y-%m-%dT%H:%M:%SZ") ---"
-timeout 900 claude -p "${PROMPT}" \
+claude -p "${PROMPT}" \
     --model "${REVIEW_MODEL}" \
     --max-budget-usd 0.50 \
     --allowedTools "Bash,Read,Write" \
@@ -429,7 +430,7 @@ if [ -f "${JUDGE_SINGLE_PROMPT}" ]; then
         | sed "s/__TIMESTAMP__/${TIMESTAMP}/g")
 
     JUDGE_LOG="${LOG_DIR}/judge-PR-${PR}-${TIMESTAMP}.md"
-    timeout 300 claude -p "${JUDGE_INPUT}" \
+    claude -p "${JUDGE_INPUT}" \
         --model "${MODEL_JUDGE:-haiku}" \
         --max-budget-usd 0.10 \
         --allowedTools "Bash,Read,Write" \

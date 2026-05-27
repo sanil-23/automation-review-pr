@@ -49,7 +49,7 @@ log "Found ${OPEN_COUNT} open PR(s) — proceeding with discovery"
 # ─── Phase 1: Discover eligible PRs ───
 log "Phase 1: Discovering eligible PRs..."
 
-PR_JSON=$(timeout 600 claude -p "$(cat "${DISCOVER_PROMPT}")" \
+PR_JSON=$(claude -p "$(cat "${DISCOVER_PROMPT}")" \
     --model "${MODEL_DISCOVER:-haiku}" \
     --max-budget-usd 0.10 \
     --allowedTools "Bash,Read" \
