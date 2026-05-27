@@ -384,20 +384,32 @@ echo "{\"pr\":${PR},\"running\":true,\"started\":\"${REVIEW_START}\"}" > "${STAT
 # Single Claude invocation
 CLAUDE_START=$(date +%s)
 echo "--- Claude review started at $(date -u +"%Y-%m-%dT%H:%M:%SZ") ---"
-claude -p "${PROMPT}" \
+CLAUDE_OUTPUT=$(claude -p "${PROMPT}" \
     --model "${REVIEW_MODEL}" \
     --max-budget-usd 1.00 \
     --allowedTools "Bash,Read,Write" \
-    --add-dir "${REPO_DIR}" || {
-    CLAUDE_EXIT=$?
-    if [ "${CLAUDE_EXIT}" -eq 124 ]; then
-        echo "[ERROR] Claude review timed out after 15 minutes"
-    else
-        echo "[ERROR] Claude review failed with exit code ${CLAUDE_EXIT}"
-    fi
-}
+    --add-dir "${REPO_DIR}" 2>&1) || true
+CLAUDE_EXIT=$?
 CLAUDE_END=$(date +%s)
 CLAUDE_DURATION=$((CLAUDE_END - CLAUDE_START))
+
+echo "${CLAUDE_OUTPUT}"
+
+# Detect rate limit
+if echo "${CLAUDE_OUTPUT}" | grep -qiE "hit your limit|rate limit|resets.*\("; then
+    echo ""
+    echo "[ERROR] Rate limited — Claude usage cap hit. Stopping."
+    echo "RATE_LIMITED=true"
+    exit 2
+fi
+
+# Detect other failures
+if [ "${CLAUDE_EXIT}" -ne 0 ]; then
+    echo ""
+    echo "[ERROR] Claude review failed with exit code ${CLAUDE_EXIT}"
+    exit 1
+fi
+
 echo ""
 echo "--- Claude review finished (${CLAUDE_DURATION}s) ---"
 

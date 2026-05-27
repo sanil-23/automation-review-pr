@@ -105,13 +105,30 @@ FAILED=0
 for i in "${!REVIEW_PIDS[@]}"; do
     PID=${REVIEW_PIDS[$i]}
     PR=${PRS[$i]}
-    if wait "${PID}"; then
+    EXIT_CODE=0
+    wait "${PID}" || EXIT_CODE=$?
+    REVIEW_LOG="${LOG_DIR}/review-PR-${PR}-${TIMESTAMP}.log"
+    if [ "${EXIT_CODE}" -eq 0 ]; then
         log "  PR #${PR}: review completed"
+    elif [ "${EXIT_CODE}" -eq 2 ]; then
+        log "  PR #${PR}: RATE LIMITED — stopping all reviews"
+        FAILED=$((FAILED + 1))
+        RATE_LIMITED=true
     else
-        log "  PR #${PR}: review FAILED"
+        log "  PR #${PR}: review FAILED (exit ${EXIT_CODE})"
         FAILED=$((FAILED + 1))
     fi
 done
+
+# Check if any review hit rate limit — abort remaining phases
+if [ "${RATE_LIMITED:-false}" = "true" ]; then
+    log ""
+    log "=== RATE LIMITED — skipping judge and git phases ==="
+    log "Cron will retry next cycle."
+    CRON_END=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    log "CRON_META: started=${CRON_START} ended=${CRON_END} discovered=${#PRS[@]} reviewed=0 failed=${FAILED}"
+    exit 0
+fi
 
 # ─── Summary ───
 log ""
