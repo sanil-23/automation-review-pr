@@ -308,12 +308,60 @@ echo ""
 echo "--- Claude review finished (${CLAUDE_DURATION}s) ---"
 
 REVIEW_END=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-TOTAL_DURATION=$((CLAUDE_END - START_EPOCH))
+
+# ─── Per-PR Quality Gate (judge before review stays public) ───
+JUDGE_SINGLE_PROMPT="${SCRIPT_DIR}/judge-single-prompt.md"
+if [ -f "${JUDGE_SINGLE_PROMPT}" ]; then
+    echo ""
+    echo "--- Quality gate: judging review ---"
+    JUDGE_START=$(date +%s)
+
+    # Determine complexity label
+    if [ "${IS_SECURITY}" = "true" ]; then
+        PR_COMPLEXITY="security"
+    elif [ "${TOTAL_DIFF}" -ge 200 ] || [ "${FILE_COUNT}" -ge 8 ]; then
+        PR_COMPLEXITY="complex"
+    elif [ "${HAS_LOGIC_CHANGES}" = "true" ]; then
+        PR_COMPLEXITY="medium"
+    else
+        PR_COMPLEXITY="simple"
+    fi
+
+    JUDGE_INPUT=$(cat "${JUDGE_SINGLE_PROMPT}" \
+        | sed "s/__PR_NUMBER__/${PR}/g" \
+        | sed "s/__MODEL_USED__/${REVIEW_MODEL}/g" \
+        | sed "s/__PR_COMPLEXITY__/${PR_COMPLEXITY}/g" \
+        | sed "s/__FILE_COUNT__/${FILE_COUNT}/g" \
+        | sed "s/__TOTAL_DIFF__/${TOTAL_DIFF}/g" \
+        | sed "s/__CI_STATUS__/${CI_STATUS}/g" \
+        | sed "s/__TIMESTAMP__/${TIMESTAMP}/g")
+
+    JUDGE_LOG="${LOG_DIR}/judge-PR-${PR}-${TIMESTAMP}.md"
+    claude -p "${JUDGE_INPUT}" \
+        --model "${MODEL_JUDGE:-haiku}" \
+        --max-budget-usd 0.10 \
+        --allowedTools "Bash,Read,Write" \
+        >"${JUDGE_LOG}" 2>&1 || echo "[Judge] Quality gate failed — review already posted"
+
+    JUDGE_END=$(date +%s)
+    JUDGE_DURATION=$((JUDGE_END - JUDGE_START))
+    echo "  Judge completed in ${JUDGE_DURATION}s"
+
+    # Check if judge found critical issues
+    if grep -qiE "FAIL.*system leak|FAIL.*hallucination|WRONG" "${JUDGE_LOG}" 2>/dev/null; then
+        echo "  ⚠ Judge found critical issues — check ${JUDGE_LOG}"
+    else
+        echo "  Quality gate passed"
+    fi
+fi
+
+TOTAL_DURATION=$(($(date +%s) - START_EPOCH))
 echo "{\"pr\":${PR},\"running\":false,\"started\":\"${REVIEW_START}\",\"ended\":\"${REVIEW_END}\"}" > "${STATUS_FILE}"
 echo ""
 echo "--- Timing ---"
 echo "  Pre-checks: ${PRECHECK_DURATION}s"
 echo "  Claude review: ${CLAUDE_DURATION}s"
+echo "  Quality gate: ${JUDGE_DURATION:-0}s"
 echo "  Total: ${TOTAL_DURATION}s"
 echo ""
 echo "REVIEW_ENDED=${REVIEW_END}"

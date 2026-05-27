@@ -119,14 +119,14 @@ for PR in "${PRS[@]}"; do
     fi
 done
 
-# ─── Phase 3: Judge reviews + self-improve ───
+# ─── Phase 3: Aggregate judge findings + self-improve ───
 REVIEWED_COUNT=$((${#PRS[@]} - FAILED))
 if [ "${REVIEWED_COUNT}" -gt 0 ]; then
-    log "Phase 3: Judging reviews and self-improving..."
+    log "Phase 3: Aggregating judge findings and self-improving..."
     JUDGE_PROMPT="${SCRIPT_DIR}/judge-prompt.md"
     if [ -f "${JUDGE_PROMPT}" ]; then
         PR_LIST=$(printf "%s " "${PRS[@]}")
-        JUDGE_INPUT=$(cat "${JUDGE_PROMPT}" | sed "s/__PR_LIST__/${PR_LIST}/g" | sed "s/__TIMESTAMP__/${TIMESTAMP}/g")
+        JUDGE_INPUT=$(cat "${JUDGE_PROMPT}" | sed "s/__PR_LIST__/${PR_LIST}/g" | sed "s/__PR_COUNT__/${REVIEWED_COUNT}/g" | sed "s/__TIMESTAMP__/${TIMESTAMP}/g")
 
         JUDGE_LOG="${LOG_DIR}/judge-${TIMESTAMP}.log"
         JUDGE_START=$(date +%s)
