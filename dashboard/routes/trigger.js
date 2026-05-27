@@ -443,11 +443,14 @@ router.get('/blocking-reviews/:id', (req, res) => {
   const prId = parseInt(req.params.id, 10);
   try {
     const out = execSync(
-      `gh api repos/${REPO}/pulls/${prId}/reviews --jq '[.[] | select(.state == "CHANGES_REQUESTED") | {id: .id, user: .user.login, state: .state, submitted_at: .submitted_at, body: .body[0:200]}]'`,
+      `gh api repos/${REPO}/pulls/${prId}/reviews`,
       { encoding: 'utf-8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] }
     );
-    const reviews = JSON.parse(out);
-    res.json(reviews);
+    const allReviews = JSON.parse(out);
+    const blocking = allReviews
+      .filter(r => r.state === 'CHANGES_REQUESTED')
+      .map(r => ({ id: r.id, user: r.user.login, state: r.state, submitted_at: r.submitted_at, body: (r.body || '').slice(0, 200) }));
+    res.json(blocking);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch reviews', details: err.message });
   }
@@ -457,11 +460,11 @@ router.get('/blocking-reviews/:id', (req, res) => {
 router.post('/dismiss-review/:prId/:reviewId', (req, res) => {
   const prId = parseInt(req.params.prId, 10);
   const reviewId = parseInt(req.params.reviewId, 10);
-  const message = req.body.message || 'Dismissed — issues addressed';
+  const message = (req.body.message || 'Dismissed — issues addressed').replace(/"/g, '\\"');
 
   try {
     const out = execSync(
-      `gh api repos/${REPO}/pulls/${prId}/reviews/${reviewId}/dismissals -X PUT -f message="${message}" -f event="DISMISS"`,
+      `gh api repos/${REPO}/pulls/${prId}/reviews/${reviewId}/dismissals -X PUT -f message='${message}' -f event=DISMISS`,
       { encoding: 'utf-8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] }
     );
     console.log(`[trigger] Dismissed review ${reviewId} on PR #${prId}`);
