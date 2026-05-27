@@ -672,7 +672,7 @@
 
         // Update info with last log line
         if (job.lineCount > 0) {
-          const logRes = await fetch(`/api/trigger/log/${activeJobId}?after=${Math.max(0, job.lineCount - 3)}`);
+          const logRes = await authFetch(`/api/trigger/log/${activeJobId}?after=${Math.max(0, job.lineCount - 3)}`);
           const logData = await logRes.json();
           if (logData.lines && logData.lines.length > 0) {
             const lastLine = logData.lines[logData.lines.length - 1].replace(/^\[\d{2}:\d{2}:\d{2}\]\s*/, '');
@@ -711,7 +711,7 @@
     async function showLiveLog() {
       if (!activeJobId) return;
       try {
-        const res = await fetch(`/api/trigger/log/${activeJobId}?after=0`);
+        const res = await authFetch(`/api/trigger/log/${activeJobId}?after=0`);
         const data = await res.json();
         const text = (data.lines || []).join('\n');
         document.getElementById('log-overlay').style.display = 'flex';
