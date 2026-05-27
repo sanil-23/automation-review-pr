@@ -9,13 +9,21 @@ List all open PRs eligible for review. Output ONLY a JSON array of PR numbers, n
 gh pr list --repo tinyhumansai/openhuman --state open --json number,title,author,isDraft --jq '[.[] | select(.isDraft == false)]'
 ```
 
-2. For each remaining PR, check if it's already approved or pending approval:
+2. For each remaining PR, check if it's already approved:
+
+**Check A — local tracking files:**
 ```bash
 ls /Users/cyrus/Desktop/automation/review-pr/to-be-approved/
 ls /Users/cyrus/Desktop/automation/review-pr/approved/
 ls /Users/cyrus/Desktop/automation/review-pr/already-merged/
 ```
-If `PR-<N>.md` exists in ANY of these directories, skip it — already handled.
+If `PR-<N>.md` exists in ANY of these directories, skip it.
+
+**Check B — GitHub review decision (catches approvals from other reviewers):**
+```bash
+gh pr view <N> --repo tinyhumansai/openhuman --json reviewDecision --jq '.reviewDecision'
+```
+If `reviewDecision` is `APPROVED`, skip it — someone already approved this PR.
 
 3. For each remaining PR, check if there are new commits since last review:
 ```bash
