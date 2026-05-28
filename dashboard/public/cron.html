@@ -616,6 +616,16 @@
       try {
         const res = await authFetch('/api/trigger/discover', { method: 'POST' });
         const data = await res.json();
+        if (res.status === 409) {
+          // Already running — attach to existing job
+          activeJobId = data.jobId || 'discover';
+          jobStartTime = Date.now();
+          toast('Cron already running — showing logs');
+          showLiveRun();
+          updateButtons(true);
+          startJobPolling();
+          return;
+        }
         activeJobId = data.jobId;
         jobStartTime = Date.now();
         toast('Cron run triggered');
@@ -657,17 +667,33 @@
     }
 
     async function pollJob() {
-      if (!activeJobId) return;
       try {
-        const res = await authFetch('/api/trigger/jobs');
-        const jobs = await res.json();
-        const job = jobs.find(j => j.jobId === activeJobId);
+        // Check trigger jobs first
+        let job = null;
+        if (activeJobId) {
+          const res = await authFetch('/api/trigger/jobs');
+          const jobs = await res.json();
+          job = Object.values(jobs).find(j => j.type === 'discover' && !j.done);
+        }
 
+        // Fallback: check scheduler state
         if (!job) {
-          // Job gone — finished and cleaned up
-          hideLiveRun();
-          loadHistory();
-          return;
+          const statusRes = await authFetch('/api/cron/status');
+          const status = await statusRes.json();
+          if (status.running) {
+            // Scheduler is running — show its logs
+            const logRes = await authFetch('/api/cron/live-log?after=0');
+            const logData = await logRes.json();
+            if (logData.lines && logData.lines.length > 0) {
+              const lastLine = logData.lines[logData.lines.length - 1];
+              document.getElementById('live-run-info').textContent = lastLine.slice(0, 100);
+            }
+            return;
+          } else {
+            hideLiveRun();
+            loadHistory();
+            return;
+          }
         }
 
         // Update info with last log line
@@ -709,13 +735,27 @@
     }
 
     async function showLiveLog() {
-      if (!activeJobId) return;
+      document.getElementById('log-overlay').style.display = 'flex';
+      document.getElementById('log-title').textContent = 'Live Log — Cron Run';
+      document.getElementById('log-content').textContent = 'Loading...';
       try {
-        const res = await authFetch(`/api/trigger/log/${activeJobId}?after=0`);
-        const data = await res.json();
-        const text = (data.lines || []).join('\n');
-        document.getElementById('log-overlay').style.display = 'flex';
-        document.getElementById('log-title').textContent = 'Live Log — Cron Run';
+        // Try trigger job log first
+        let text = '';
+        if (activeJobId) {
+          try {
+            const res = await authFetch(`/api/trigger/log/${activeJobId}?after=0`);
+            if (res.ok) {
+              const data = await res.json();
+              text = (data.lines || []).join('\n');
+            }
+          } catch {}
+        }
+        // Fallback to scheduler's live log
+        if (!text) {
+          const res = await authFetch('/api/cron/live-log?after=0');
+          const data = await res.json();
+          text = (data.lines || []).join('\n');
+        }
         document.getElementById('log-content').textContent = text || 'Waiting for output...';
       } catch (e) {
         document.getElementById('log-content').textContent = 'Failed to load log';
@@ -784,9 +824,13 @@
         }
       });
 
-      // Show stop button if processes are running (even from crontab)
+      // Show live run banner + stop button if scheduler is running
       if (s.running && !activeJobId) {
+        activeJobId = 'scheduler';
+        jobStartTime = new Date(s.last_run || Date.now()).getTime();
+        showLiveRun();
         updateButtons(true);
+        startJobPolling();
       }
 
       // Reviewer

@@ -172,6 +172,17 @@ router.post('/schedule', (req, res) => {
   res.json({ minutes, human: intervalToHuman(cron.intervalMs) });
 });
 
+// GET /api/cron/live-log — get scheduler's in-memory log lines
+router.get('/live-log', (req, res) => {
+  const cron = scheduler.cronState;
+  const after = parseInt(req.query.after || '0', 10);
+  res.json({
+    running: cron.running,
+    total: cron.logLines.length,
+    lines: cron.logLines.slice(after),
+  });
+});
+
 // GET /api/cron/history
 router.get('/history', (req, res) => {
   const runs = parseCronLogs();

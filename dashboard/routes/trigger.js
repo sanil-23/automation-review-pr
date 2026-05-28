@@ -119,9 +119,11 @@ router.post('/review/:id', (req, res) => {
 
 // POST /api/trigger/discover
 router.post('/discover', (req, res) => {
-  if (activeJobs.has('discover')) {
-    return res.status(409).json({ error: 'Discovery is already running' });
+  const existing = activeJobs.get('discover');
+  if (existing && !existing.done) {
+    return res.status(409).json({ error: 'Discovery is already running', jobId: 'discover' });
   }
+  if (existing) activeJobs.delete('discover');
 
   const child = spawn('bash', [CRON_SCRIPT], {
     cwd: BASE_DIR,

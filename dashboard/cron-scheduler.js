@@ -15,6 +15,8 @@ const cronState = {
   lastRun: null,
   nextRun: null,
   running: false,
+  childPid: null,
+  logLines: [],
 };
 
 function startCronTimer() {
@@ -84,10 +86,14 @@ function fireCron() {
     }
   }, MAX_RUN_TIME);
 
+  cronState.logLines = [];
+
   child.stdout.on('data', (d) => {
     const lines = d.toString().split('\n').filter(Boolean);
     for (const line of lines) {
       console.log(`[cron] ${line}`);
+      cronState.logLines.push(line);
+      if (cronState.logLines.length > 500) cronState.logLines.shift();
 
       // Parse key events for notifications
       const eligibleMatch = line.match(/Found (\d+) eligible PR\(s\):\s*(.+)/);
