@@ -58,7 +58,7 @@ const notify = {
   },
 
   reviewCompleted(prNumber, decision, findings) {
-    const icon = decision === 'APPROVE' ? '✅' : decision === 'REQUEST_CHANGES' ? '🔴' : '💬';
+    const icon = decision.includes('APPROVE') ? '✅' : decision.includes('REQUEST_CHANGES') ? '🔴' : '💬';
     send(`${icon} <b>PR #${prNumber}</b> → ${decision}\n${findings}`);
   },
 

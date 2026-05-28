@@ -104,7 +104,6 @@ function fireCron() {
 
       const completedMatch = line.match(/PR #(\d+): review completed/);
       if (completedMatch) {
-        // Read the summary from the per-PR log if available
         const prNum = completedMatch[1];
         try {
           const fs = require('fs');
@@ -113,7 +112,13 @@ function fireCron() {
           if (files.length > 0) {
             const content = fs.readFileSync(path.join(logDir, files[0]), 'utf-8');
             const summaryLine = content.match(/^PR #\d+:.+$/m);
-            if (summaryLine) notify.reviewCompleted(prNum, summaryLine[0].split('→').pop()?.trim() || 'done', summaryLine[0]);
+            if (summaryLine) {
+              // Split on first → only (summary can contain multiple arrows)
+              const arrowIdx = summaryLine[0].indexOf('→');
+              const findings = arrowIdx >= 0 ? summaryLine[0].slice(0, arrowIdx).replace(/^PR #\d+:\s*/, '').trim() : '';
+              const decision = arrowIdx >= 0 ? summaryLine[0].slice(arrowIdx + 1).trim() : summaryLine[0];
+              notify.reviewCompleted(prNum, decision, findings);
+            }
           }
         } catch {}
       }
@@ -141,21 +146,23 @@ function fireCron() {
     console.log(`[cron] [${ts()}] ■ Cron cycle FINISHED — exit ${code}, took ${min}m ${sec}s`);
     console.log(`[cron] [${ts()}]   Next run: ${new Date(Date.now() + cronState.intervalMs).toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' })}`);
 
-    // Parse the cron log for summary stats
-    try {
-      const fs = require('fs');
-      const logDir = path.join(__dirname, '..', 'logs');
-      const logFiles = fs.readdirSync(logDir).filter(f => f.match(/^review-\d{4}/) && !f.includes('-PR-')).sort().reverse();
-      if (logFiles.length > 0) {
-        const content = fs.readFileSync(path.join(logDir, logFiles[0]), 'utf-8');
-        const meta = content.match(/CRON_META:\s*started=\S+\s+ended=\S+\s+discovered=(\d+)\s+reviewed=(\d+)\s+failed=(\d+)/);
-        if (meta) {
-          notify.cronFinished(meta[1], meta[2], meta[3], `${min}m ${sec}s`);
-        } else {
-          notify.cronFinished('?', '?', code === 0 ? '0' : '?', `${min}m ${sec}s`);
-        }
-      }
-    } catch {}
+    // Parse summary from in-memory log lines (disk file may not be flushed yet)
+    const allLog = cronState.logLines.join('\n');
+    const meta = allLog.match(/CRON_META:\s*started=\S+\s+ended=\S+\s+discovered=(\d+)\s+reviewed=(\d+)\s+failed=(\d+)/);
+    if (meta) {
+      notify.cronFinished(meta[1], meta[2], meta[3], `${min}m ${sec}s`);
+    } else {
+      // Fallback: parse the Summary block
+      const discovered = allLog.match(/Discovered:\s*(\d+)/);
+      const failed = allLog.match(/Failed:\s*(\d+)/);
+      const succeeded = allLog.match(/Succeeded:\s*(\d+)/);
+      notify.cronFinished(
+        discovered ? discovered[1] : '?',
+        succeeded ? succeeded[1] : '?',
+        failed ? failed[1] : (code === 0 ? '0' : '?'),
+        `${min}m ${sec}s`
+      );
+    }
   });
 
   child.on('error', (err) => {
