@@ -68,7 +68,8 @@ fi
 PRIORITY_PRS=$(echo "${ALL_PRS_JSON}" | jq -r '[.[] | select(.reviewRequests[]?.login == "'"${GH_USER}"'")] | .[].number' 2>/dev/null || echo "")
 OTHER_PRS=$(echo "${ALL_PRS_JSON}" | jq -r '[.[] | select(([.reviewRequests[]?.login] | index("'"${GH_USER}"'")) == null)] | .[].number' 2>/dev/null || echo "")
 
-PRIORITY_COUNT=$(echo "${PRIORITY_PRS}" | grep -c '[0-9]' 2>/dev/null || echo "0")
+PRIORITY_COUNT=$(echo "${PRIORITY_PRS}" | grep -c '[0-9]' 2>/dev/null || true)
+PRIORITY_COUNT=${PRIORITY_COUNT:-0}
 if [ "${PRIORITY_COUNT}" -gt 0 ]; then
     log "Priority PRs (reviewer-tagged): $(echo ${PRIORITY_PRS} | tr '\n' ' ')"
 fi
