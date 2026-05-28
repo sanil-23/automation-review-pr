@@ -46,32 +46,53 @@ if [ "${OPEN_COUNT}" = "0" ]; then
 fi
 log "Found ${OPEN_COUNT} open PR(s) — proceeding with discovery"
 
-# ─── Phase 1: Discover eligible PRs ───
+# ─── Phase 1: Discover eligible PRs (pure bash — zero LLM cost) ───
 log "Phase 1: Discovering eligible PRs..."
 
-DISCOVER_ERR="${LOG_DIR}/discover-${TIMESTAMP}.err"
-PR_JSON=$(claude -p "$(cat "${DISCOVER_PROMPT}")" \
-    --model "${MODEL_DISCOVER:-sonnet}" \
-    --max-budget-usd 1.00 \
-    --allowedTools "Bash,Read" \
-    --add-dir "${REPO_DIR}" \
-    2>"${DISCOVER_ERR}") || {
-    log "Discovery failed — check ${DISCOVER_ERR}"
-    cat "${DISCOVER_ERR}" >> "${LOG_FILE}" 2>/dev/null
-    exit 0
-}
-
-PR_NUMBERS=$(echo "${PR_JSON}" | grep -oE '\[[ 0-9,]*\]' | head -1)
-
-if [ -z "${PR_NUMBERS}" ] || [ "${PR_NUMBERS}" = "[]" ]; then
-    log "No eligible PRs found. Done."
+# Get all open non-draft PRs
+ALL_PRS=$(gh pr list --repo tinyhumansai/openhuman --state open --json number,isDraft,author --jq '[.[] | select(.isDraft == false)] | .[].number' 2>/dev/null || echo "")
+if [ -z "${ALL_PRS}" ]; then
+    log "No open non-draft PRs found. Done."
     exit 0
 fi
 
 PRS=()
-while IFS= read -r pr; do
-    [ -n "$pr" ] && PRS+=("$pr")
-done < <(echo "${PR_NUMBERS}" | tr -d '[]' | tr ',' '\n' | tr -d ' ' | grep -v '^$')
+for PR_NUM in ${ALL_PRS}; do
+    # Skip own PRs
+    PR_AUTHOR_CHECK=$(gh pr view "${PR_NUM}" --repo tinyhumansai/openhuman --json author --jq '.author.login' 2>/dev/null || echo "")
+    if [ "${PR_AUTHOR_CHECK}" = "graycyrus" ]; then
+        continue
+    fi
+
+    # Skip if already in approved/to-be-approved/already-merged
+    if [ -f "${SCRIPT_DIR}/approved/PR-${PR_NUM}.md" ] || \
+       [ -f "${SCRIPT_DIR}/to-be-approved/PR-${PR_NUM}.md" ] || \
+       [ -f "${SCRIPT_DIR}/already-merged/PR-${PR_NUM}.md" ]; then
+        continue
+    fi
+
+    # Skip if already approved on GitHub by a non-bot
+    HUMAN_APPROVALS=$(gh api "repos/tinyhumansai/openhuman/pulls/${PR_NUM}/reviews" --jq '[.[] | select(.state == "APPROVED" and (.user.login | test("\\[bot\\]$") | not))] | length' 2>/dev/null || echo "0")
+    if [ "${HUMAN_APPROVALS}" -gt 0 ] 2>/dev/null; then
+        continue
+    fi
+
+    # Skip if no new commits since last review
+    if [ -f "${SCRIPT_DIR}/tinyhumansai-openhuman/PR-${PR_NUM}.md" ]; then
+        LATEST=$(gh pr view "${PR_NUM}" --repo tinyhumansai/openhuman --json commits --jq '.commits[-1].oid' 2>/dev/null || echo "")
+        LAST_REVIEWED=$(grep -m1 'Last reviewed commit' "${SCRIPT_DIR}/tinyhumansai-openhuman/PR-${PR_NUM}.md" 2>/dev/null | sed 's/.*: *//' || echo "")
+        if [ -n "${LATEST}" ] && [ "${LATEST}" = "${LAST_REVIEWED}" ]; then
+            continue
+        fi
+    fi
+
+    PRS+=("${PR_NUM}")
+done
+
+if [ "${#PRS[@]}" -eq 0 ]; then
+    log "No eligible PRs found. Done."
+    exit 0
+fi
 log "Found ${#PRS[@]} eligible PR(s): ${PRS[*]}"
 
 # Limit reviews per cycle (remaining PRs picked up next cycle)
