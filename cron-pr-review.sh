@@ -51,8 +51,8 @@ log "Phase 1: Discovering eligible PRs..."
 
 DISCOVER_ERR="${LOG_DIR}/discover-${TIMESTAMP}.err"
 PR_JSON=$(claude -p "$(cat "${DISCOVER_PROMPT}")" \
-    --model "${MODEL_DISCOVER:-haiku}" \
-    --max-budget-usd 0.50 \
+    --model "${MODEL_DISCOVER:-sonnet}" \
+    --max-budget-usd 1.00 \
     --allowedTools "Bash,Read" \
     --add-dir "${REPO_DIR}" \
     2>"${DISCOVER_ERR}") || {
