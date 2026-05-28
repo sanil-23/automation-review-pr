@@ -2,14 +2,19 @@ const https = require('https');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const PREFIX = '[PR Review Cron]';
+
+function ts() {
+  return new Date().toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+}
 
 function send(message) {
   if (!BOT_TOKEN || !CHAT_ID) return;
 
-  const text = message.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
+  const full = `<b>${PREFIX}</b> <i>${ts()}</i>\n${message}`;
   const payload = JSON.stringify({
     chat_id: CHAT_ID,
-    text: message,
+    text: full,
     parse_mode: 'HTML',
     disable_web_page_preview: true,
   });
@@ -21,12 +26,11 @@ function send(message) {
     headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
   });
 
-  req.on('error', () => {}); // silent fail
+  req.on('error', () => {});
   req.write(payload);
   req.end();
 }
 
-// Pre-formatted messages
 const notify = {
   cronStarted(prCount) {
     send(`🔄 <b>Cron started</b>\nDiscovered ${prCount} eligible PR(s)`);
