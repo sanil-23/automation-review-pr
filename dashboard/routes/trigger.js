@@ -611,6 +611,8 @@ router.post('/merge/:id', (req, res) => {
       { encoding: 'utf-8', timeout: 60000, stdio: ['pipe', 'pipe', 'pipe'] }
     );
     console.log(`[trigger] PR #${prId} merged successfully`);
+    const notify = require('../notify');
+    notify.merged(prId, pr.title || '');
 
     // Update DB and move tracking file
     githubSync.handlePrMerged(prId);

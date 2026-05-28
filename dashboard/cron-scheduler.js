@@ -1,5 +1,6 @@
 const { spawn } = require('child_process');
 const path = require('path');
+const notify = require('./notify');
 
 const CRON_SCRIPT = path.join(__dirname, '..', 'cron-pr-review.sh');
 
@@ -25,6 +26,7 @@ function startCronTimer() {
   cronState.nextRun = nextAt.toISOString();
   console.log(`[cron] [${ts()}] ✓ Scheduler ACTIVE — runs every ${min} min`);
   console.log(`[cron] [${ts()}]   Next run: ${nextAt.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' })}`);
+  notify.schedulerToggled(true, min);
   cronState.timer = setInterval(fireCron, cronState.intervalMs);
 }
 
@@ -34,6 +36,7 @@ function stopCronTimer() {
   cronState.active = false;
   cronState.nextRun = null;
   console.log(`[cron] [${ts()}] ✗ Scheduler STOPPED`);
+  notify.schedulerToggled(false);
 }
 
 function fireCron() {
@@ -74,6 +77,7 @@ function fireCron() {
   const killTimer = setTimeout(() => {
     if (cronState.running) {
       console.log(`[cron] [${ts()}] ⚠ TIMEOUT — killing stuck run after 30 min (PID ${child.pid})`);
+      notify.cronError('Cron stuck for 30min — force killed');
       try { process.kill(-child.pid, 'SIGTERM'); } catch {}
       try { child.kill('SIGTERM'); } catch {}
       cronState.running = false;
@@ -84,6 +88,32 @@ function fireCron() {
     const lines = d.toString().split('\n').filter(Boolean);
     for (const line of lines) {
       console.log(`[cron] ${line}`);
+
+      // Parse key events for notifications
+      const eligibleMatch = line.match(/Found (\d+) eligible PR\(s\):\s*(.+)/);
+      if (eligibleMatch) {
+        notify.cronStarted(parseInt(eligibleMatch[1]));
+      }
+
+      const completedMatch = line.match(/PR #(\d+): review completed/);
+      if (completedMatch) {
+        // Read the summary from the per-PR log if available
+        const prNum = completedMatch[1];
+        try {
+          const fs = require('fs');
+          const logDir = path.join(__dirname, '..', 'logs');
+          const files = fs.readdirSync(logDir).filter(f => f.includes(`PR-${prNum}`) && f.endsWith('.log')).sort().reverse();
+          if (files.length > 0) {
+            const content = fs.readFileSync(path.join(logDir, files[0]), 'utf-8');
+            const summaryLine = content.match(/^PR #\d+:.+$/m);
+            if (summaryLine) notify.reviewCompleted(prNum, summaryLine[0].split('→').pop()?.trim() || 'done', summaryLine[0]);
+          }
+        } catch {}
+      }
+
+      if (line.includes('RATE LIMITED')) {
+        notify.cronRateLimited();
+      }
     }
   });
 
@@ -103,6 +133,22 @@ function fireCron() {
     const sec = duration % 60;
     console.log(`[cron] [${ts()}] ■ Cron cycle FINISHED — exit ${code}, took ${min}m ${sec}s`);
     console.log(`[cron] [${ts()}]   Next run: ${new Date(Date.now() + cronState.intervalMs).toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' })}`);
+
+    // Parse the cron log for summary stats
+    try {
+      const fs = require('fs');
+      const logDir = path.join(__dirname, '..', 'logs');
+      const logFiles = fs.readdirSync(logDir).filter(f => f.match(/^review-\d{4}/) && !f.includes('-PR-')).sort().reverse();
+      if (logFiles.length > 0) {
+        const content = fs.readFileSync(path.join(logDir, logFiles[0]), 'utf-8');
+        const meta = content.match(/CRON_META:\s*started=\S+\s+ended=\S+\s+discovered=(\d+)\s+reviewed=(\d+)\s+failed=(\d+)/);
+        if (meta) {
+          notify.cronFinished(meta[1], meta[2], meta[3], `${min}m ${sec}s`);
+        } else {
+          notify.cronFinished('?', '?', code === 0 ? '0' : '?', `${min}m ${sec}s`);
+        }
+      }
+    } catch {}
   });
 
   child.on('error', (err) => {
@@ -110,6 +156,7 @@ function fireCron() {
     cronState.running = false;
     cronState.childPid = null;
     console.log(`[cron] [${ts()}] ✗ Cron cycle ERROR — ${err.message}`);
+    notify.cronError(err.message);
   });
 }
 
