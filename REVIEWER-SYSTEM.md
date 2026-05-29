@@ -3,8 +3,9 @@
 A 3-cron system that reviews PRs involving you and, when an author goes silent,
 takes the PR over, fixes it, gets CI + CodeRabbit green, and merges it.
 
-Identity = `$ME` (sanil-23). Target = `$REVIEW_REPO`. Config in `.env`
-(template in `.env.example`). Flow diagram: `docs/pr-reviewer-flow.excalidraw`.
+Identity = `$ME` (sanil-23). Target = `$REVIEW_REPO`. Config in `config.toml`
+(template in `config.toml.example`; flat TOML, keys map to UPPERCASE env vars —
+`review_repo` → `REVIEW_REPO`). Flow diagram: `docs/pr-reviewer-flow.excalidraw`.
 
 ## The three crons
 
@@ -52,7 +53,7 @@ has per-job **Run now**. Removing a PR from a queue / cancelling a takeover is t
 `×` on any queue row or worker slot.
 
 ```bash
-cp .env.example .env        # initial config (or use the Setup wizard)
+cp config.toml.example config.toml   # initial config (or use the Setup wizard)
 bin/run-cycle               # run all 3 crons once, now (CLI, for testing)
 ```
 
@@ -73,7 +74,7 @@ bin/cron-uninstall          # remove them
 `dashboard-next/` ingests `state/` into a `pr_state` SQLite table
 (`lib/state-sync.js`, which also prunes rows whose state file was removed) and
 shows:
-- **SetupWizard** — first-run / `⚙` modal to set the target repo + identity (writes `.env`).
+- **SetupWizard** — first-run / `⚙` modal to set the target repo + identity (writes `config.toml`).
 - **CronControl** — edit the 3 cron schedules live, enable/disable the loop, Run-now per job.
 - **TakeoverPanel** — the 5 worker slots with phase (`fix→coverage→merge`), CI/CodeRabbit status, elapsed time, live tmux window, and a cancel `×`.
 - **QueueBoard** — the REVIEW ↔ FIX two-queue board + duplicate-issue groups, with a per-row eject `×`.
@@ -81,7 +82,7 @@ shows:
 
 APIs: `GET /api/queues`, `GET /api/takeover`, `GET/POST /api/cron-config`,
 `POST /api/cron-run`, `POST /api/queue/eject`, `GET/POST /api/setup`,
-`GET /api/identity-check`. Repo target resolves from `.env` via `lib/repo.js`.
+`GET /api/identity-check`. Repo target resolves from `config.toml` via `lib/repo.js`.
 
 ## Autonomy / safety
 

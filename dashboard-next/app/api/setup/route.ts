@@ -4,21 +4,21 @@ import { promisify } from 'util';
 const pexecFile = promisify(execFile);
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const envfile = require('@/lib/envfile');
+const config = require('@/lib/config');
 
 export const dynamic = 'force-dynamic';
 
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
 function snapshot() {
-  const e = envfile.readEnv();
+  const c = config.readConfig();
   return {
-    configured: !!(e.REVIEW_REPO && e.REVIEW_REPO.trim()),
-    review_repo: e.REVIEW_REPO || '',
-    me: e.ME || '',
-    autonomy: e.AUTONOMY || 'full',
-    stall_hours: Number(e.STALL_HOURS || 24),
-    takeover_concurrency: Number(e.TAKEOVER_CONCURRENCY || 5),
+    configured: !!(c.review_repo && String(c.review_repo).trim()),
+    review_repo: c.review_repo || '',
+    me: c.me || '',
+    autonomy: c.autonomy || 'full',
+    stall_hours: Number(c.stall_hours || 24),
+    takeover_concurrency: Number(c.takeover_concurrency || 5),
   };
 }
 
@@ -45,13 +45,13 @@ export async function POST(req: NextRequest) {
     repo_warning = `gh could not access ${repo} (${(e.stderr || e.message || '').toString().trim().split('\n')[0]}). Saved anyway.`;
   }
 
-  const updates: Record<string, string> = { REVIEW_REPO: repo };
-  if (typeof b.me === 'string' && b.me.trim()) updates.ME = b.me.trim();
-  if (b.autonomy === 'full' || b.autonomy === 'manual') updates.AUTONOMY = b.autonomy;
-  if (Number.isFinite(+b.stall_hours) && +b.stall_hours > 0) updates.STALL_HOURS = String(Math.floor(+b.stall_hours));
+  const updates: Record<string, string | number> = { review_repo: repo };
+  if (typeof b.me === 'string' && b.me.trim()) updates.me = b.me.trim();
+  if (b.autonomy === 'full' || b.autonomy === 'manual') updates.autonomy = b.autonomy;
+  if (Number.isFinite(+b.stall_hours) && +b.stall_hours > 0) updates.stall_hours = Math.floor(+b.stall_hours);
   if (Number.isFinite(+b.takeover_concurrency) && +b.takeover_concurrency >= 1)
-    updates.TAKEOVER_CONCURRENCY = String(Math.floor(+b.takeover_concurrency));
+    updates.takeover_concurrency = Math.floor(+b.takeover_concurrency);
 
-  envfile.writeEnv(updates);
+  config.writeConfig(updates);
   return NextResponse.json({ ...snapshot(), repo_ok, repo_warning });
 }

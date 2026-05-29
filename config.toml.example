@@ -1,0 +1,35 @@
+# PR Reviewer + Autonomous Takeover — configuration
+# Flat TOML (no nested tables). Each key maps to the UPPERCASE env var the
+# scripts use: review_repo -> REVIEW_REPO. Copy to config.toml and edit
+# (or set the repo from the dashboard Setup wizard, which writes this file).
+
+# Target repo the reviewer operates on + the pnpm fixes run against.
+review_repo = "sanil-23/automation-review-pr"
+# Your GitHub login — mention / review-request / assignee scope + review attribution.
+me = "sanil-23"
+# Reviewer identity file: reviewers/<reviewer>.md
+reviewer = "sanil"
+# Working tree review-single.sh reads diffs from.
+repo_dir = "/home/sanil/vezures/automation-review-pr"
+
+# Takeover trigger / probe windows (hours).
+stall_hours = 24
+stall_probe_hours = 12
+# full = auto-close losers + auto-merge winners; manual = stop before close/merge.
+autonomy = "full"
+# Parallel takeover fixers.
+takeover_concurrency = 5
+takeover_clone = "/home/sanil/vezures/automation-review-pr/.takeover-clone"
+state_dir = "/home/sanil/vezures/automation-review-pr/state"
+
+# Model routing.
+model_discover = "haiku"
+model_review_simple = "haiku"
+model_review_complex = "sonnet"
+model_judge = "haiku"
+max_reviews = 5
+
+# Optional integrations.
+telegram_bot_token = ""
+telegram_chat_id = ""
+api_key = ""

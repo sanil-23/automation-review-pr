@@ -2,7 +2,7 @@
 # Show installed reviewer crons + last log lines + a queue snapshot.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"; cd "$SCRIPT_DIR"
-[ -f .env ] && { set -a; . ./.env; set +a; }
+source "$SCRIPT_DIR/lib/config.sh"
 source lib/state.sh 2>/dev/null || true
 
 echo "== crontab =="

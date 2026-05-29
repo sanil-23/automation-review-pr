@@ -14,7 +14,7 @@ set -uo pipefail
 PR="${1:?pr}"; SLOT="${2:-0}"
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$SCRIPT_DIR"
-[ -f .env ] && { set -a; . ./.env; set +a; }
+source "$SCRIPT_DIR/lib/config.sh"
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1 || true
 
 : "${REVIEW_REPO:?set REVIEW_REPO}"; : "${ME:?set ME}"

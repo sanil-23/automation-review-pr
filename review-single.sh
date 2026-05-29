@@ -43,8 +43,10 @@ STATUS_FILE="${SCRIPT_DIR}/status.json"
 
 export PATH="/Users/cyrus/.nvm/versions/node/v22.22.1/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH}"
 
-# Load .env
-if [ -f "${SCRIPT_DIR}/.env" ]; then
+# Load config.toml (loader falls back to legacy .env if config.toml is absent).
+if [ -f "${SCRIPT_DIR}/lib/config.sh" ]; then
+    source "${SCRIPT_DIR}/lib/config.sh"
+elif [ -f "${SCRIPT_DIR}/.env" ]; then
     set -a; source "${SCRIPT_DIR}/.env"; set +a
 fi
 

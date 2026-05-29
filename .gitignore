@@ -46,3 +46,6 @@ node_modules
 
 # TS build artifact
 *.tsbuildinfo
+
+# Runtime config (use config.toml.example as the template)
+config.toml
