@@ -4,22 +4,25 @@ import { triggerJobs } from '@/lib/server-deps';
 
 export const dynamic = 'force-dynamic';
 
-const CRON_SCRIPT = path.join(triggerJobs.BASE_DIR, 'cron-pr-review.sh');
+// New reviewer discover = scout-assign (Cron 1): discover in-scope PRs, assign
+// @me, dedup by linked issue, enqueue into the REVIEW QUEUE. (Replaces the
+// legacy cron-pr-review.sh full-cycle script.)
+const SCOUT_SCRIPT = path.join(triggerJobs.BASE_DIR, 'bin', 'scout-assign');
 
 export async function POST() {
   if (triggerJobs.activeJobs.has('discover')) {
     return NextResponse.json({ error: 'Discovery is already running' }, { status: 409 });
   }
 
-  const logFile = path.join(triggerJobs.LOGS_DIR, `review-${triggerJobs.timestamp()}.log`);
+  const logFile = path.join(triggerJobs.LOGS_DIR, `cron-scout.log`);
   const job = triggerJobs.startJob({
     jobId: 'discover',
     command: 'bash',
-    args: [CRON_SCRIPT],
+    args: [SCOUT_SCRIPT],
     logFile,
     type: 'discover',
     pr: null,
-    onClose: (code: number) => console.log(`[trigger] Discovery finished with code ${code}`),
+    onClose: (code: number) => console.log(`[trigger] scout-assign finished with code ${code}`),
   });
 
   if (!job) {
