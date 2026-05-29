@@ -87,9 +87,40 @@ function getDb() {
       is_open INTEGER DEFAULT 1
     );
 
+    CREATE TABLE IF NOT EXISTS pr_state (
+      pr_id INTEGER PRIMARY KEY REFERENCES prs(id),
+      fsm_state TEXT,                 -- NEW / IN_REVIEW / CHANGES_REQUESTED / CLEAN /
+                                      -- QUEUED_FOR_FIX / FIXING / AWAIT_CI / READY_MERGE /
+                                      -- MERGED / WINNER / CLOSED_LOSER / CLOSED_REDUNDANT
+      queue TEXT,                     -- review | fix | none
+      linked_issue INTEGER,
+      winner_pr INTEGER,
+      dedup_verdict TEXT,
+      signature TEXT,
+      last_reviewed_signature TEXT,
+      last_review_at TEXT,
+      review_decision TEXT,
+      ci_state TEXT,
+      coderabbit_approved INTEGER DEFAULT 0,
+      findings_critical INTEGER DEFAULT 0,
+      findings_major INTEGER DEFAULT 0,
+      findings_minor INTEGER DEFAULT 0,
+      last_author_activity_at TEXT,
+      stall_age_hours INTEGER DEFAULT 0,
+      queued_for_fix_at TEXT,
+      fix_phase TEXT,                 -- fix | coverage | await_ci | merge
+      worker_slot INTEGER,
+      takeover_started_at TEXT,
+      last_error TEXT,
+      updated_at TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_prs_status ON prs(status);
     CREATE INDEX IF NOT EXISTS idx_cycles_pr ON review_cycles(pr_id);
     CREATE INDEX IF NOT EXISTS idx_pr_github_open ON pr_github(is_open);
+    CREATE INDEX IF NOT EXISTS idx_pr_state_fsm ON pr_state(fsm_state);
+    CREATE INDEX IF NOT EXISTS idx_pr_state_queue ON pr_state(queue);
+    CREATE INDEX IF NOT EXISTS idx_pr_state_issue ON pr_state(linked_issue);
   `);
 
   // Migrate: rename is_insider → is_member
@@ -550,6 +581,128 @@ function markClosedPrs(openPrIds) {
   db.prepare(`UPDATE pr_github SET is_open = 0 WHERE pr_id NOT IN (${placeholders}) AND is_open = 1`).run(...openPrIds);
 }
 
+// ── pr_state (FSM store mirror of state/pr-<N>.json) ────────────────────────
+const REVIEW_QUEUE_STATES = ['IN_REVIEW', 'CHANGES_REQUESTED', 'CLEAN', 'NEW'];
+const FIX_QUEUE_STATES = ['QUEUED_FOR_FIX', 'FIXING', 'AWAIT_CI', 'READY_MERGE'];
+const TAKEOVER_ACTIVE = ['FIXING', 'AWAIT_CI', 'READY_MERGE'];
+
+function upsertPrState(s) {
+  const db = getDb();
+  // Ensure a parent prs row exists (state may arrive before github-sync).
+  db.prepare(`INSERT INTO prs (id, title, url, author, status, updated_at)
+              VALUES (@pr, @title, @url, @author, @status, datetime('now'))
+              ON CONFLICT(id) DO UPDATE SET
+                title=COALESCE(excluded.title, prs.title),
+                url=COALESCE(excluded.url, prs.url),
+                author=COALESCE(excluded.author, prs.author)`).run({
+    pr: s.pr, title: s.title || null, url: s.url || null,
+    author: s.author || null, status: (s.fsm_state || '').toLowerCase(),
+  });
+  db.prepare(`
+    INSERT INTO pr_state (
+      pr_id, fsm_state, queue, linked_issue, winner_pr, dedup_verdict,
+      signature, last_reviewed_signature, last_review_at, review_decision,
+      ci_state, coderabbit_approved, findings_critical, findings_major, findings_minor,
+      last_author_activity_at, stall_age_hours, queued_for_fix_at,
+      fix_phase, worker_slot, takeover_started_at, last_error, updated_at
+    ) VALUES (
+      @pr_id, @fsm_state, @queue, @linked_issue, @winner_pr, @dedup_verdict,
+      @signature, @last_reviewed_signature, @last_review_at, @review_decision,
+      @ci_state, @coderabbit_approved, @fc, @fm, @fn,
+      @last_author_activity_at, @stall_age_hours, @queued_for_fix_at,
+      @fix_phase, @worker_slot, @takeover_started_at, @last_error, @updated_at
+    )
+    ON CONFLICT(pr_id) DO UPDATE SET
+      fsm_state=excluded.fsm_state, queue=excluded.queue, linked_issue=excluded.linked_issue,
+      winner_pr=excluded.winner_pr, dedup_verdict=excluded.dedup_verdict,
+      signature=excluded.signature, last_reviewed_signature=excluded.last_reviewed_signature,
+      last_review_at=excluded.last_review_at, review_decision=excluded.review_decision,
+      ci_state=excluded.ci_state, coderabbit_approved=excluded.coderabbit_approved,
+      findings_critical=excluded.findings_critical, findings_major=excluded.findings_major,
+      findings_minor=excluded.findings_minor,
+      last_author_activity_at=excluded.last_author_activity_at,
+      stall_age_hours=excluded.stall_age_hours, queued_for_fix_at=excluded.queued_for_fix_at,
+      fix_phase=excluded.fix_phase, worker_slot=excluded.worker_slot,
+      takeover_started_at=excluded.takeover_started_at, last_error=excluded.last_error,
+      updated_at=excluded.updated_at
+  `).run({
+    pr_id: s.pr,
+    fsm_state: s.fsm_state || null, queue: s.queue || null,
+    linked_issue: s.linked_issue ?? null, winner_pr: s.winner_pr ?? null,
+    dedup_verdict: s.dedup_verdict || null,
+    signature: s.signature || null, last_reviewed_signature: s.last_reviewed_signature || null,
+    last_review_at: s.last_review_at || null, review_decision: s.review_decision || null,
+    ci_state: s.ci_state || null, coderabbit_approved: s.coderabbit_approved ? 1 : 0,
+    fc: s.findings?.critical ?? 0, fm: s.findings?.major ?? 0, fn: s.findings?.minor ?? 0,
+    last_author_activity_at: s.last_author_activity_at || null,
+    stall_age_hours: s.stall_age_hours ?? 0, queued_for_fix_at: s.queued_for_fix_at || null,
+    fix_phase: s.fix_phase || null, worker_slot: s.worker_slot ?? null,
+    takeover_started_at: s.takeover_started_at || null, last_error: s.last_error || null,
+    updated_at: s.updated_at || new Date().toISOString(),
+  });
+}
+
+const STATE_SELECT = `
+  SELECT s.*, p.title, p.author, p.url,
+         g.ci_pass, g.ci_fail, g.ci_pending, g.review_decision AS gh_review_decision,
+         g.merge_state_status
+  FROM pr_state s
+  JOIN prs p ON p.id = s.pr_id
+  LEFT JOIN pr_github g ON g.pr_id = s.pr_id`;
+
+function _placeholders(arr) { return arr.map(() => '?').join(','); }
+
+// { review: [...], fix: [...] } — the two-queue board.
+function queues() {
+  const db = getDb();
+  const review = db.prepare(
+    `${STATE_SELECT} WHERE s.fsm_state IN (${_placeholders(REVIEW_QUEUE_STATES)})
+     ORDER BY s.stall_age_hours DESC, s.pr_id DESC`).all(...REVIEW_QUEUE_STATES);
+  const fix = db.prepare(
+    `${STATE_SELECT} WHERE s.fsm_state IN (${_placeholders(FIX_QUEUE_STATES)})
+     ORDER BY s.worker_slot ASC, s.pr_id DESC`).all(...FIX_QUEUE_STATES);
+  return { review, fix };
+}
+
+// Active takeover workers, keyed by slot.
+function takeoverWorkers() {
+  const db = getDb();
+  return db.prepare(
+    `${STATE_SELECT} WHERE s.fsm_state IN (${_placeholders(TAKEOVER_ACTIVE)})
+     ORDER BY s.worker_slot ASC`).all(...TAKEOVER_ACTIVE);
+}
+
+// PRs grouped by linked issue with their dedup verdict (winner / losers).
+function issueGroups() {
+  const db = getDb();
+  const rows = db.prepare(
+    `${STATE_SELECT} WHERE s.linked_issue IS NOT NULL ORDER BY s.linked_issue, s.pr_id`).all();
+  const groups = {};
+  for (const r of rows) (groups[r.linked_issue] ||= []).push(r);
+  return Object.entries(groups)
+    .filter(([, prs]) => prs.length > 1)
+    .map(([issue, prs]) => ({ issue: Number(issue), prs }));
+}
+
+function fsmCounts() {
+  const db = getDb();
+  return db.prepare(`SELECT fsm_state, COUNT(*) n FROM pr_state GROUP BY fsm_state`)
+    .all().reduce((m, r) => (m[r.fsm_state] = r.n, m), {});
+}
+
+// Drop pr_state rows whose state file no longer exists (keepIds = the PR
+// numbers currently present in state/). Keeps the board from showing PRs that
+// were ejected/removed on disk.
+function pruneStateExcept(keepIds) {
+  const db = getDb();
+  const keep = new Set((keepIds || []).map(Number));
+  const have = db.prepare('SELECT pr_id FROM pr_state').all().map((r) => r.pr_id);
+  const del = db.prepare('DELETE FROM pr_state WHERE pr_id = ?');
+  let n = 0;
+  for (const id of have) if (!keep.has(id)) { del.run(id); n++; }
+  return n;
+}
+
 function close() {
   if (_db) {
     _db.close();
@@ -561,6 +714,14 @@ module.exports = {
   getDb,
   upsertPr,
   upsertPrGithub,
+  upsertPrState,
+  queues,
+  takeoverWorkers,
+  issueGroups,
+  fsmCounts,
+  pruneStateExcept,
+  REVIEW_QUEUE_STATES,
+  FIX_QUEUE_STATES,
   getAllPrs,
   getPrById,
   getPrByIdFull,

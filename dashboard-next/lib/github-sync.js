@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const db = require('./db');
 
-const REPO = 'tinyhumansai/openhuman';
+const REPO = require('./repo').reviewRepo();
 const BASE_DIR = path.resolve(process.cwd(), '..');
 const MERGED_DIR = path.join(BASE_DIR, 'already-merged');
 const WORKER_PATH = path.join(process.cwd(), 'lib', 'github-sync-worker.js');
@@ -185,6 +185,7 @@ function fetchAllOpenPrs() {
 
   const worker = fork(WORKER_PATH, [], {
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+    env: { ...process.env, REVIEW_REPO: REPO },
   });
 
   // Forward worker logs to server console

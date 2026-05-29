@@ -13,6 +13,11 @@ status.json
 .review-counter
 .review-counter.last
 
+# PR-state FSM store + takeover working clone (runtime)
+state/
+.takeover-clone/
+.queue/
+
 # SQLite databases (runtime data)
 dashboard/data/*.db
 dashboard/data/*.db-shm
@@ -38,3 +43,6 @@ next-env.d.ts
 *.swp
 *.swo
 node_modules
+
+# TS build artifact
+*.tsbuildinfo

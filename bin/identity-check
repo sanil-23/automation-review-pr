@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Verify git and gh agree on identity (so reviews/commits/PRs are attributed
+# to the right account). Prints a JSON report; exit 0 if consistent, 2 if not.
+#
+#   --json   machine-readable only (used by the dashboard preflight + API)
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"; cd "$SCRIPT_DIR"
+[ -f .env ] && { set -a; . ./.env; set +a; }
+: "${ME:=}"
+JSON_ONLY=0; [ "${1:-}" = "--json" ] && JSON_ONLY=1
+
+git_name="$(git config user.name 2>/dev/null || true)"
+git_email="$(git config user.email 2>/dev/null || true)"
+gh_login=""; gh_ok="false"
+if command -v gh >/dev/null 2>&1; then
+  gh_login="$(gh api user --jq .login 2>/dev/null || true)"
+  [ -n "$gh_login" ] && gh_ok="true"
+fi
+
+problems=()
+[ -z "$gh_login" ] && problems+=("gh is not authenticated (run: gh auth login)")
+[ -z "$git_name" ] && problems+=("git user.name is unset")
+# gh login should match the git committer name (and ME if set)
+if [ -n "$gh_login" ] && [ -n "$git_name" ] && [ "$gh_login" != "$git_name" ]; then
+  problems+=("git user.name '$git_name' != gh login '$gh_login'")
+fi
+if [ -n "$ME" ] && [ -n "$gh_login" ] && [ "$gh_login" != "$ME" ]; then
+  problems+=("gh login '$gh_login' != configured ME '$ME'")
+fi
+
+ok="true"; [ "${#problems[@]}" -gt 0 ] && ok="false"
+probs_json="$(printf '%s\n' "${problems[@]:-}" | jq -R . 2>/dev/null | jq -s 'map(select(length>0))' 2>/dev/null || echo '[]')"
+
+jq -n --arg gn "$git_name" --arg ge "$git_email" --arg gl "$gh_login" \
+      --arg me "$ME" --argjson ghok "$gh_ok" --argjson ok "$ok" --argjson probs "$probs_json" '{
+  ok:$ok, gh_authenticated:$ghok, gh_login:$gl,
+  git_user_name:$gn, git_user_email:$ge, me:$me, problems:$probs
+}'
+
+if [ "$JSON_ONLY" -eq 0 ] && [ "$ok" != "true" ]; then
+  echo "identity-check: MISMATCH — ${problems[*]}" >&2
+fi
+[ "$ok" = "true" ]

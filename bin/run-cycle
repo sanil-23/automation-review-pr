@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Run all three crons once, in order, right now. For testing / manual kicks
+# without waiting on the schedule. Stall-watch also dispatches takeover.
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+echo "=== scout-assign ==="; bash "$SCRIPT_DIR/bin/scout-assign"
+echo "=== review-cron  ==="; bash "$SCRIPT_DIR/bin/review-cron"
+echo "=== stall-watch  ==="; bash "$SCRIPT_DIR/bin/stall-watch"

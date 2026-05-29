@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+# Cron 1 — scout-assign (producer).
+#
+# Discovers in-scope PRs, assigns @me, deduplicates by linked issue (closing
+# losers / already-merged redundants and picking a winner), and enqueues the
+# survivors into the REVIEW QUEUE (fsm_state = IN_REVIEW) for Cron 2.
+#
+# In scope (open PRs on $REVIEW_REPO):
+#   - mentions:$ME            (you were @-mentioned)
+#   - review-requested:$ME    (your review was requested)
+#   - assignee:$ME            (already assigned to you)
+#   - not authored by $ME AND links an issue that is assigned to someone
+#
+# Idempotent: safe to run every 20 min.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$SCRIPT_DIR"
+[ -f .env ] && { set -a; . ./.env; set +a; }
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1 || true
+
+: "${REVIEW_REPO:?set REVIEW_REPO}"; : "${ME:?set ME}"
+source lib/state.sh
+source lib/dedup.sh
+
+LOG_DIR="${SCRIPT_DIR}/logs"; mkdir -p "$LOG_DIR"
+log() { echo "[$(_now)] [scout] $*"; }
+
+# Mutually-exclusive single-instance lock.
+LOCK="/tmp/scout-assign.lock"
+exec 9>"$LOCK"; flock -n 9 || { log "another scout-assign is running — skip"; exit 0; }
+
+log "scanning ${REVIEW_REPO} for in-scope PRs (me=${ME})"
+
+# ── 1. Discover in-scope PR numbers ──────────────────────────────────────────
+search_prs() { gh pr list -R "$REVIEW_REPO" --state open --search "$1" --json number --jq '.[].number' 2>/dev/null; }
+
+declare -A INSCOPE=()
+for q in "mentions:$ME" "review-requested:$ME" "assignee:$ME"; do
+  while read -r n; do [ -n "$n" ] && INSCOPE["$n"]=1; done < <(search_prs "$q")
+done
+
+# PRs not authored by me that close an issue (System-2 intake). We compute the
+# linked issue per open PR and keep those with one, authored by someone else.
+while read -r n; do
+  [ -z "$n" ] && continue
+  author="$(gh pr view "$n" -R "$REVIEW_REPO" --json author --jq '.author.login' 2>/dev/null)"
+  [ "$author" = "$ME" ] && continue
+  iss="$(linked_issue_of "$n")"
+  [ -n "$iss" ] && INSCOPE["$n"]=1
+done < <(gh pr list -R "$REVIEW_REPO" --state open --json number --jq '.[].number' 2>/dev/null)
+
+if [ "${#INSCOPE[@]}" -eq 0 ]; then log "no in-scope PRs"; exit 0; fi
+log "in-scope: ${!INSCOPE[*]}"
+
+# ── 2. Assign @me + seed state + record linked issue ────────────────────────
+declare -A ISSUE_OF=()
+for pr in "${!INSCOPE[@]}"; do
+  state_init "$pr"
+  snap="$(pr_snapshot "$pr")"
+  state_set "$pr" title  "$(jq -r '.title // ""' <<<"$snap")"
+  state_set "$pr" url    "$(jq -r '.url // ""'   <<<"$snap")"
+  author="$(jq -r '.author.login // ""' <<<"$snap")"
+  state_set "$pr" author "$author"
+  state_set_json "$pr" is_me_author "$([ "$author" = "$ME" ] && echo true || echo false)"
+  state_set "$pr" head_sha "$(jq -r '.headRefOid // ""' <<<"$snap")"
+
+  # assign @me if not already
+  if ! jq -e --arg me "$ME" '.assignees[]?|select(.login==$me)' <<<"$snap" >/dev/null 2>&1; then
+    gh pr edit "$pr" -R "$REVIEW_REPO" --add-assignee "$ME" >/dev/null 2>&1 \
+      && log "assigned #$pr to @$ME" || log "could not assign #$pr"
+  fi
+  state_set_json "$pr" assignee_me true
+
+  iss="$(linked_issue_of "$pr")"
+  if [ -n "$iss" ]; then state_set_json "$pr" linked_issue "$iss"; ISSUE_OF["$pr"]="$iss"; fi
+done
+
+# ── 3. Dedup by linked issue ─────────────────────────────────────────────────
+# Build issue -> "pr pr ..." over the union of in-scope PRs and any sibling PRs
+# GitHub knows are connected to the same issue.
+declare -A SEEN_ISSUE=()
+for pr in "${!INSCOPE[@]}"; do
+  iss="${ISSUE_OF[$pr]:-}"
+  [ -z "$iss" ] && continue
+  [ -n "${SEEN_ISSUE[$iss]:-}" ] && continue
+  SEEN_ISSUE["$iss"]=1
+
+  # gather all PRs connected to this issue, split by state
+  open_prs=(); merged=0; merged_pr=""
+  while IFS=$'\t' read -r num st; do
+    [ -z "$num" ] && continue
+    case "$st" in
+      OPEN)   open_prs+=("$num") ;;
+      MERGED) merged=1; merged_pr="$num" ;;
+    esac
+  done < <(prs_for_issue "$iss")
+  # ensure the in-scope PR itself is in the open set
+  case " ${open_prs[*]} " in *" $pr "*) ;; *) open_prs+=("$pr") ;; esac
+
+  if [ "$merged" -eq 1 ]; then
+    log "issue #$iss already has merged PR #$merged_pr — closing open dups as redundant"
+    for o in "${open_prs[@]}"; do close_loser "$o" "$merged_pr" redundant; done
+    continue
+  fi
+
+  if [ "${#open_prs[@]}" -le 1 ]; then
+    log "issue #$iss: single PR #${open_prs[0]:-$pr} — winner by default"
+    continue
+  fi
+
+  winner="$(judge_winner "$iss" "${open_prs[@]}")"
+  [ -z "$winner" ] && winner="$pr"
+  log "issue #$iss: winner=#$winner among [${open_prs[*]}]"
+  state_init "$winner"; state_set_json "$winner" winner_pr "$winner"
+  state_set "$winner" dedup_verdict "winner:issue-#${iss}"
+  for o in "${open_prs[@]}"; do
+    [ "$o" = "$winner" ] && continue
+    close_loser "$o" "$winner" duplicate
+  done
+done
+
+# ── 4. Enqueue survivors into the REVIEW QUEUE ───────────────────────────────
+# Anything in-scope that wasn't closed and isn't already owned by Cron 3 /
+# terminal moves to IN_REVIEW (fresh NEW PRs) — Cron 2 will pick it up.
+for pr in "${!INSCOPE[@]}"; do
+  state_is_terminal "$pr" && continue
+  state_owned_by_takeover "$pr" && continue
+  st="$(state_get "$pr" .fsm_state)"
+  if [ "$st" = "NEW" ]; then
+    fsm_set "$pr" IN_REVIEW "enqueued by scout"
+    log "enqueued #$pr -> REVIEW QUEUE"
+  fi
+done
+
+log "done; in-scope=${#INSCOPE[@]}"

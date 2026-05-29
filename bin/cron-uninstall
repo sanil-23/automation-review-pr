@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Remove the managed reviewer cron block from the user crontab. Idempotent.
+set -euo pipefail
+BEGIN="# >>> pr-reviewer-takeover (managed) >>>"
+END="# <<< pr-reviewer-takeover (managed) <<<"
+command -v crontab >/dev/null || { echo "crontab not found"; exit 1; }
+current="$(crontab -l 2>/dev/null || true)"
+if ! printf '%s' "$current" | grep -qF "pr-reviewer-takeover"; then
+  echo "No managed reviewer crons installed."; exit 0
+fi
+printf '%s\n' "$current" \
+  | sed "/$(printf '%s' "$BEGIN" | sed 's/[][\.*^$/]/\\&/g')/,/$(printf '%s' "$END" | sed 's/[][\.*^$/]/\\&/g')/d" \
+  | sed '/^$/N;/^\n$/D' | crontab -
+echo "Removed reviewer crons."

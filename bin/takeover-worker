@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+# Cron 3c — takeover worker (one PR). Launched detached by bin/takeover.
+#
+# Usage: takeover-worker <pr> <slot>
+#
+# Pipeline:  FIXING (apply fixes) -> coverage -> AWAIT_CI (poll until required
+# CI green AND CodeRabbit APPROVED) -> READY_MERGE -> merge --admin -> MERGED.
+#
+# Landing:  if the PR's head branch is pushable (same-repo, or maintainer edits
+# allowed) we push fixes straight onto it via the vendored toolkit. Otherwise
+# we open a REPLACEMENT PR from a branch on $REVIEW_REPO that Closes the issue.
+set -uo pipefail
+
+PR="${1:?pr}"; SLOT="${2:-0}"
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$SCRIPT_DIR"
+[ -f .env ] && { set -a; . ./.env; set +a; }
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1 || true
+
+: "${REVIEW_REPO:?set REVIEW_REPO}"; : "${ME:?set ME}"
+: "${AUTONOMY:=full}"
+: "${TAKEOVER_CLONE:=$SCRIPT_DIR/.takeover-clone}"
+: "${TAKEOVER_CI_TIMEOUT:=3600}"   # seconds to wait for CI to go green
+: "${TAKEOVER_CI_POLL:=120}"
+export REVIEW_REPO ME
+export REVIEW_AGENT_SAFE="${REVIEW_AGENT_SAFE:-0}"   # 0 = claude yolo (skip-permissions)
+source lib/state.sh
+
+QDIR="${SCRIPT_DIR}/.queue"; mkdir -p "$QDIR"
+PIDF="$QDIR/worker-$PR.pid"; echo $$ > "$PIDF"
+log() { echo "[$(_now)] [worker#$PR slot$SLOT] $*"; }
+fail() { log "FAILED: $*"; state_set "$PR" last_error "$*"; rm -f "$PIDF"; exit 1; }
+trap 'rm -f "$PIDF"' EXIT
+
+state_set_json "$PR" worker_slot "$SLOT"
+state_set "$PR" takeover_started_at "$(_now)"
+state_set "$PR" last_error ""
+state_set "$PR" fix_phase "fix"
+fsm_set "$PR" FIXING "takeover started (slot $SLOT)"
+
+# ── working clone (never the harness tree) ───────────────────────────────────
+ensure_clone() {
+  if [ ! -d "$TAKEOVER_CLONE/.git" ]; then
+    log "cloning $REVIEW_REPO -> $TAKEOVER_CLONE"
+    gh repo clone "$REVIEW_REPO" "$TAKEOVER_CLONE" -- -q || fail "clone failed"
+  fi
+  git -C "$TAKEOVER_CLONE" remote get-url upstream >/dev/null 2>&1 \
+    || git -C "$TAKEOVER_CLONE" remote add upstream "https://github.com/$REVIEW_REPO.git"
+  git -C "$TAKEOVER_CLONE" fetch origin -q || true
+}
+ensure_clone
+
+# ── decide landing mode ──────────────────────────────────────────────────────
+meta="$(gh pr view "$PR" -R "$REVIEW_REPO" --json maintainerCanModify,isCrossRepository,headRefName,headRefOid,headRepositoryOwner,baseRefName 2>/dev/null)"
+cross="$(jq -r '.isCrossRepository'   <<<"$meta")"
+canmod="$(jq -r '.maintainerCanModify' <<<"$meta")"
+head_branch="$(jq -r '.headRefName'   <<<"$meta")"
+base_branch="$(jq -r '.baseRefName // "main"' <<<"$meta")"
+issue="$(state_get "$PR" .linked_issue)"
+
+MODE=push
+{ [ "$cross" = "true" ] && [ "$canmod" != "true" ]; } && MODE=replace
+log "landing mode = $MODE (cross=$cross maintainerCanModify=$canmod head=$head_branch)"
+
+cd "$TAKEOVER_CLONE"
+
+# ── phase 1: apply fixes ─────────────────────────────────────────────────────
+if [ "$MODE" = "push" ]; then
+  log "fix: vendored 'cli.sh fix $PR' (pushes to PR head branch)"
+  REVIEW_REPO="$REVIEW_REPO" bash "$SCRIPT_DIR/vendor/review/cli.sh" fix "$PR" \
+    || fail "vendored fix failed"
+else
+  # Replacement path — we control a branch on the target repo and open a new PR.
+  RB="takeover/pr-$PR"
+  log "fix: replacement branch $RB"
+  git fetch "https://github.com/$(jq -r '.headRepositoryOwner.login' <<<"$meta")/${REVIEW_REPO##*/}.git" \
+      "+${head_branch}:${RB}" 2>/dev/null \
+    || git fetch origin "+refs/pull/$PR/head:${RB}" \
+    || fail "could not fetch PR head"
+  git checkout "$RB" || fail "checkout $RB failed"
+  git fetch origin -q && git merge --no-edit "origin/${base_branch}" \
+    || log "merge of base had conflicts — agent will resolve"
+  FIXPROMPT="You are on git branch ${RB}, a copy of pull request #${PR} of ${REVIEW_REPO}. Do a thorough CodeRabbit-style review and APPLY all fixes: resolve any merge-conflict markers, address every actionable reviewer/bot comment on PR #${PR}, then run formatters / typecheck / lint / tests until green. Commit everything in focused commits. DO NOT run 'git push' and DO NOT touch 'main' — the orchestrator handles pushing. When done, ensure 'git status --short' is clean."
+  if [ "$REVIEW_AGENT_SAFE" = "1" ]; then claude -p "$FIXPROMPT" || fail "agent fix failed"
+  else claude --dangerously-skip-permissions -p "$FIXPROMPT" || fail "agent fix failed"; fi
+  git push -u origin "$RB" || fail "push of replacement branch failed"
+  body="Supersedes #${PR} (author was inactive >${STALL_HOURS:-24}h)."
+  [ -n "$issue" ] && body="${body}"$'\n\n'"Closes #${issue}"
+  NEWPR=$(gh pr create -R "$REVIEW_REPO" --base "$base_branch" --head "$RB" \
+            --title "Takeover of #${PR}" --body "$body" 2>/dev/null | grep -oE '[0-9]+$' | tail -1)
+  if [ -n "$NEWPR" ]; then
+    log "opened replacement PR #$NEWPR"
+    gh pr comment "$PR" -R "$REVIEW_REPO" --body "Opened #${NEWPR} to carry this forward (author inactive). Continuing there." >/dev/null 2>&1 || true
+    state_set_json "$PR" winner_pr "$NEWPR"
+    state_set "$PR" dedup_verdict "replaced-by-#${NEWPR}"
+    state_init "$NEWPR"; state_set_json "$NEWPR" linked_issue "${issue:-null}"
+    fsm_set "$PR" CLOSED_LOSER "replaced by #$NEWPR (takeover)"
+    PR="$NEWPR"  # continue the pipeline on the replacement
+    PIDF2="$QDIR/worker-$PR.pid"; echo $$ > "$PIDF2"; trap 'rm -f "$PIDF" "$PIDF2"' EXIT
+    fsm_set "$PR" FIXING "takeover replacement (from original)"
+    state_set_json "$PR" worker_slot "$SLOT"
+  else
+    fail "could not open replacement PR"
+  fi
+fi
+
+# ── phase 2: coverage / CI babysit ───────────────────────────────────────────
+state_set "$PR" fix_phase "coverage"
+log "coverage: vendored 'cli.sh coverage $PR'"
+REVIEW_REPO="$REVIEW_REPO" bash "$SCRIPT_DIR/vendor/review/cli.sh" coverage "$PR" \
+  || log "coverage run returned nonzero — continuing to CI poll"
+
+# ── phase 3: wait for required CI green AND CodeRabbit APPROVED ───────────────
+state_set "$PR" fix_phase "await_ci"
+fsm_set "$PR" AWAIT_CI "waiting for CI + CodeRabbit"
+deadline=$(( $(_epoch) + TAKEOVER_CI_TIMEOUT ))
+green=0
+while [ "$(_epoch)" -lt "$deadline" ]; do
+  snap="$(pr_snapshot "$PR")"
+  ci="$(ci_rollup_state "$snap")"
+  cr=no; coderabbit_approved "$snap" && cr=yes
+  state_set "$PR" ci_state "$ci"
+  state_set_json "$PR" coderabbit_approved "$([ "$cr" = yes ] && echo true || echo false)"
+  log "poll: CI=$ci coderabbitApproved=$cr"
+  if [ "$ci" = "SUCCESS" ] && [ "$cr" = "yes" ]; then green=1; break; fi
+  if [ "$ci" = "FAILURE" ]; then
+    log "CI failing — re-running coverage/fix once"
+    REVIEW_REPO="$REVIEW_REPO" bash "$SCRIPT_DIR/vendor/review/cli.sh" coverage "$PR" || true
+  fi
+  sleep "$TAKEOVER_CI_POLL"
+done
+
+if [ "$green" -ne 1 ]; then
+  state_set "$PR" last_error "CI/CodeRabbit not green within ${TAKEOVER_CI_TIMEOUT}s"
+  fsm_set "$PR" AWAIT_CI "stuck: CI/CodeRabbit not green (will retry next dispatch)"
+  log "not green before timeout — leaving in AWAIT_CI"
+  exit 0
+fi
+
+# ── phase 4: merge ───────────────────────────────────────────────────────────
+fsm_set "$PR" READY_MERGE "CI + CodeRabbit green"
+state_set "$PR" fix_phase "merge"
+if [ "$AUTONOMY" = "full" ]; then
+  log "merge: vendored 'cli.sh merge $PR --admin'"
+  if REVIEW_REPO="$REVIEW_REPO" bash "$SCRIPT_DIR/vendor/review/cli.sh" merge "$PR" --admin --summary-llm none; then
+    fsm_set "$PR" MERGED "auto-merged (CI+CodeRabbit green)"
+    log "MERGED #$PR"
+  else
+    state_set "$PR" last_error "merge command failed"
+    fsm_set "$PR" READY_MERGE "merge failed — manual check"
+    log "merge failed — left READY_MERGE"
+  fi
+else
+  log "AUTONOMY!=full — leaving READY_MERGE for manual confirm"
+fi

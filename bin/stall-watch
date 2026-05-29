@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Cron 3a — stall-watch (hourly).
+#
+# For each review-queue PR not authored by $ME, measures how long the author
+# has been silent. Reports recent activity within STALL_PROBE_HOURS, and once
+# silence reaches STALL_HOURS transitions the PR into the FIX QUEUE
+# (fsm_state = QUEUED_FOR_FIX). Then kicks bin/takeover to drain the queue.
+#
+# Idempotent: safe to run hourly.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$SCRIPT_DIR"
+[ -f .env ] && { set -a; . ./.env; set +a; }
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1 || true
+
+: "${REVIEW_REPO:?set REVIEW_REPO}"; : "${ME:?set ME}"
+: "${STALL_HOURS:=24}"; : "${STALL_PROBE_HOURS:=12}"
+source lib/state.sh
+
+log() { echo "[$(_now)] [stall] $*"; }
+
+LOCK="/tmp/stall-watch.lock"
+exec 9>"$LOCK"; flock -n 9 || { log "another stall-watch is running — skip"; exit 0; }
+
+# Only review-queue states are takeover-eligible. Cron 3-owned + terminal skip.
+for pr in $(state_list_fsm IN_REVIEW CHANGES_REQUESTED CLEAN); do
+  [ "$(state_get "$pr" .is_me_author)" = "true" ] && continue
+  author="$(state_get "$pr" .author)"
+  [ -z "$author" ] && author="$(gh pr view "$pr" -R "$REVIEW_REPO" --json author --jq .author.login 2>/dev/null)"
+  [ "$author" = "$ME" ] && continue
+
+  last="$(author_last_activity "$pr" "$author")"
+  hours="$(stall_hours_for "$pr" "$author")"
+  state_set "$pr" last_author_activity_at "${last:-none}"
+  state_set_json "$pr" stall_age_hours "${hours:-0}"
+
+  if [ "$hours" -lt "$STALL_PROBE_HOURS" ]; then
+    log "#$pr author @$author active ${hours}h ago (< ${STALL_PROBE_HOURS}h probe) — healthy"
+  elif [ "$hours" -lt "$STALL_HOURS" ]; then
+    log "#$pr author @$author silent ${hours}h (probe ${STALL_PROBE_HOURS}h tripped, < ${STALL_HOURS}h takeover) — watching"
+  else
+    log "#$pr author @$author silent ${hours}h >= ${STALL_HOURS}h — QUEUED_FOR_FIX"
+    state_set "$pr" queued_for_fix_at "$(_now)"
+    fsm_set "$pr" QUEUED_FOR_FIX "author silent ${hours}h"
+  fi
+done
+
+# Drain the fix queue (launches up to TAKEOVER_CONCURRENCY detached workers).
+log "dispatching takeover"
+bash "$SCRIPT_DIR/bin/takeover" || true
+log "done"

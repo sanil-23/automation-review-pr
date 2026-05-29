@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Start the Next.js dashboard (port 3848) — runs side-by-side with the legacy
+# Express dashboard (bin/dashboard, port 3847). Builds on first run if needed.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1 || true
+
+# Preflight: gh + git must agree on identity, or reviews/commits get misattributed.
+echo "Checking gh/git identity..."
+if ! "${SCRIPT_DIR}/bin/identity-check" >/tmp/reviewer-identity.json 2>/dev/null; then
+  echo "⚠  gh/git identity check FAILED:"
+  command -v jq >/dev/null && jq -r '.problems[]? | "   - " + .' /tmp/reviewer-identity.json || cat /tmp/reviewer-identity.json
+  echo "   (continuing — fix with: gh auth login / git config user.name; also shown in the dashboard banner)"
+else
+  echo "✓ gh/git identity consistent ($(command -v jq >/dev/null && jq -r .gh_login /tmp/reviewer-identity.json))"
+fi
+
+cd "${SCRIPT_DIR}/dashboard-next"
+[ -d node_modules ] || npm install
+PORT="${PORT:-3848}"
+# Default to dev: the pre-existing rewrite has unrelated TS errors that block
+# `next build`. Pass `prod` to attempt a production build/start once those are
+# resolved.
+if [ "${1:-}" = "prod" ]; then
+  [ -d .next ] || npm run build
+  echo "Starting dashboard-next (prod) at http://localhost:${PORT}"
+  exec npm run start
+else
+  echo "Starting dashboard-next (dev) at http://localhost:${PORT}"
+  exec npm run dev
+fi

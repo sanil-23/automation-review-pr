@@ -1,12 +1,15 @@
 import './globals.css';
 import type { Metadata } from 'next';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { reviewRepo } = require('@/lib/repo');
 
 export const metadata: Metadata = {
   title: 'PR Review Dashboard',
-  description: 'tinyhumansai/openhuman PR review automation',
+  description: 'PR review automation',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const repo = reviewRepo();
   return (
     <html lang="en">
       <body className="min-h-screen">
@@ -14,7 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="mx-auto max-w-[1600px] px-6 py-3 flex items-center justify-between">
             <h1 className="text-lg font-semibold">
               PR Review Dashboard
-              <span className="ml-2 text-[var(--color-text-muted)] text-sm font-normal">tinyhumansai/openhuman</span>
+              <span className="ml-2 text-[var(--color-text-muted)] text-sm font-normal">{repo}</span>
             </h1>
           </div>
         </header>
