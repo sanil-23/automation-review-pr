@@ -33,3 +33,7 @@ max_reviews = 5
 telegram_bot_token = ""
 telegram_chat_id = ""
 api_key = ""
+
+# Load the legacy tinyhumansai-openhuman/*.md tracking files at startup.
+# Off by default (the new reviewer uses state/ + live github-sync).
+legacy_md_sync = false
