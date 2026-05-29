@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { SetupWizard } from '@/components/SetupWizard';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { reviewRepo } = require('@/lib/repo');
 
@@ -19,6 +20,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               PR Review Dashboard
               <span className="ml-2 text-[var(--color-text-muted)] text-sm font-normal">{repo}</span>
             </h1>
+            {/* Global — first-run modal + ⚙ settings on every route */}
+            <SetupWizard />
           </div>
         </header>
         <main className="mx-auto max-w-[1600px] px-6 py-6">{children}</main>

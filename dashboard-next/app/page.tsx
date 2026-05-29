@@ -10,7 +10,6 @@ import { QueueBoard } from '@/components/QueueBoard';
 import { TakeoverPanel } from '@/components/TakeoverPanel';
 import { CronControl } from '@/components/CronControl';
 import { IdentityBanner } from '@/components/IdentityBanner';
-import { SetupWizard } from '@/components/SetupWizard';
 import { Button } from '@/components/Button';
 import { api } from '@/lib/api';
 
@@ -115,7 +114,6 @@ export default function DashboardPage() {
           )}
         </div>
         <div className="flex gap-2 items-center">
-          <SetupWizard />
           <Button onClick={handleSync} disabled={busy !== null} size="sm">
             {busy === 'sync' ? 'Syncing…' : 'Sync'}
           </Button>
