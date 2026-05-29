@@ -3,6 +3,14 @@
   "version": "1.0.0",
   "description": "Automated PR reviewer for tinyhumansai/openhuman",
   "scripts": {
+    "start": "bash bin/dashboard-next",
+    "dev": "bash bin/dashboard-next",
+    "dashboard:next": "bash bin/dashboard-next",
+    "cycle": "bash bin/run-cycle",
+    "cron:install": "bash bin/cron-install",
+    "cron:uninstall": "bash bin/cron-uninstall",
+    "cron:status": "bash bin/cron-status",
+    "identity": "bash bin/identity-check",
     "review": "bash bin/review",
     "cron:on": "bash bin/cron-on",
     "cron:off": "bash bin/cron-off",
@@ -10,6 +18,7 @@
     "dashboard": "bash bin/dashboard"
   },
   "bin": {
+    "pr-reviewer": "./bin/dashboard-next",
     "review": "./bin/review",
     "cron-on": "./bin/cron-on",
     "cron-off": "./bin/cron-off",
