@@ -9,7 +9,6 @@ import { PrTable } from '@/components/PrTable';
 import { QueueBoard } from '@/components/QueueBoard';
 import { TakeoverPanel } from '@/components/TakeoverPanel';
 import { CronControl } from '@/components/CronControl';
-import { IdentityBanner } from '@/components/IdentityBanner';
 import { Button } from '@/components/Button';
 import { api } from '@/lib/api';
 
@@ -142,7 +141,6 @@ export default function DashboardPage() {
           </span>
         </div>
       )}
-      <IdentityBanner />
       <StatsBar stats={stats} />
       <CronControl />
       <TakeoverPanel />

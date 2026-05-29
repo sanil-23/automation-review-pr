@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { SetupWizard } from '@/components/SetupWizard';
+import { IdentityBanner } from '@/components/IdentityBanner';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { reviewRepo } = require('@/lib/repo');
 
@@ -24,7 +25,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <SetupWizard />
           </div>
         </header>
-        <main className="mx-auto max-w-[1600px] px-6 py-6">{children}</main>
+        <main className="mx-auto max-w-[1600px] px-6 py-6">
+          <IdentityBanner />
+          {children}
+        </main>
       </body>
     </html>
   );
