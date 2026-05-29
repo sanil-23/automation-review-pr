@@ -116,11 +116,9 @@ export const api = {
   syncAll: () => jpost<{ synced: number }>('/api/sync'),
   // Best-effort post-merge welcome. Errors here shouldn't bubble up — the
   // merge has already succeeded by the time we call this.
-  welcome: async (id: number) => {
+  welcome: async (id: number): Promise<{ posted: boolean; first_contribution?: boolean; comment?: string; error?: string; skipped?: string; contributor?: string }> => {
     try {
-      return await jpost<{ posted: boolean; first_contribution?: boolean; comment?: string; error?: string; skipped?: string; contributor?: string }>(
-        `/api/trigger/welcome/${id}`,
-      );
+      return await jpost(`/api/trigger/welcome/${id}`);
     } catch (e: any) {
       return { posted: false, error: e.message };
     }

@@ -45,7 +45,7 @@ export function StatsBar({ stats }: { stats: Stats | null }) {
             }
           >
             <div className="text-xs text-[var(--color-text-muted)]">{card.label}</div>
-            <div className="text-xl font-semibold mt-0.5">{stats?.[card.key] ?? '-'}</div>
+            <div className="text-xl font-semibold mt-0.5">{(stats?.[card.key] as number | undefined) ?? '-'}</div>
           </button>
         );
       })}

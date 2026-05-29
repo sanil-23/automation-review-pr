@@ -12,9 +12,10 @@ const toneClass: Record<Tone, string> = {
   blue: 'bg-blue-500/15 text-[var(--color-accent)] border-blue-500/30',
 };
 
-export function Badge({ tone = 'gray', children, className }: { tone?: Tone; children: ReactNode; className?: string }) {
+export function Badge({ tone = 'gray', children, className, title }: { tone?: Tone; children: ReactNode; className?: string; title?: string }) {
   return (
     <span
+      title={title}
       className={clsx(
         'inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[12px] font-medium leading-5',
         toneClass[tone],
