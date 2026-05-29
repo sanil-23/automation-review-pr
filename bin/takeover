@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Cron 3b — takeover dispatcher.
+#
+# Drains the FIX QUEUE (fsm_state = QUEUED_FOR_FIX) by launching detached
+# per-PR workers, capped at TAKEOVER_CONCURRENCY simultaneous fixes. Reconciles
+# crashed workers (dead pid while still in a FIXING/AWAIT_CI/READY_MERGE state)
+# back to QUEUED_FOR_FIX so they retry next run.
+#
+# Prefers a tmux window (session $TAKEOVER_TMUX_SESSION) so the dashboard can
+# mirror the live fix; falls back to nohup when tmux is absent.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$SCRIPT_DIR"
+[ -f .env ] && { set -a; . ./.env; set +a; }
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1 || true
+
+: "${REVIEW_REPO:?set REVIEW_REPO}"
+: "${TAKEOVER_CONCURRENCY:=5}"
+: "${TAKEOVER_TMUX_SESSION:=super-review}"
+source lib/state.sh
+
+log() { echo "[$(_now)] [takeover] $*"; }
+QDIR="${SCRIPT_DIR}/.queue"; mkdir -p "$QDIR" "$SCRIPT_DIR/logs"
+
+LOCK="/tmp/takeover-dispatch.lock"
+exec 9>"$LOCK"; flock -n 9 || { log "another dispatcher is running — skip"; exit 0; }
+
+worker_alive() { local pf="$QDIR/worker-$1.pid"; [ -f "$pf" ] && kill -0 "$(cat "$pf" 2>/dev/null)" 2>/dev/null; }
+
+# ── Reconcile: any in-flight PR whose worker died goes back to the queue ──
+for pr in $(state_list_fsm FIXING AWAIT_CI READY_MERGE); do
+  if ! worker_alive "$pr"; then
+    log "#$pr in-flight but worker dead — requeue"
+    state_set "$pr" last_error "worker died mid-takeover; requeued"
+    rm -f "$QDIR/worker-$pr.pid"
+    fsm_set "$pr" QUEUED_FOR_FIX "requeued after worker death"
+  fi
+done
+
+# ── Count live workers; figure out free slots ──
+running=0; declare -A USED_SLOT=()
+for pr in $(state_list_fsm FIXING AWAIT_CI READY_MERGE); do
+  if worker_alive "$pr"; then running=$((running+1)); USED_SLOT["$(state_get "$pr" .worker_slot)"]=1; fi
+done
+log "in-flight=$running cap=$TAKEOVER_CONCURRENCY"
+
+free_slot() { local s; for s in $(seq 1 "$TAKEOVER_CONCURRENCY"); do [ -z "${USED_SLOT[$s]:-}" ] && { echo "$s"; return; }; done; }
+
+launched=0
+for pr in $(state_list_fsm QUEUED_FOR_FIX); do
+  [ "$running" -ge "$TAKEOVER_CONCURRENCY" ] && { log "all $TAKEOVER_CONCURRENCY slots busy — rest next run"; break; }
+  worker_alive "$pr" && continue
+  slot="$(free_slot)"; [ -z "$slot" ] && break
+  USED_SLOT["$slot"]=1; running=$((running+1)); launched=$((launched+1))
+
+  logf="$SCRIPT_DIR/logs/takeover-PR-$pr.log"
+  if command -v tmux >/dev/null 2>&1; then
+    tmux has-session -t "$TAKEOVER_TMUX_SESSION" 2>/dev/null || tmux new-session -d -s "$TAKEOVER_TMUX_SESSION" -n _dispatch
+    tmux new-window -t "$TAKEOVER_TMUX_SESSION" -n "pr-$pr" \
+      "bash '$SCRIPT_DIR/bin/takeover-worker' '$pr' '$slot' 2>&1 | tee -a '$logf'"
+    log "launched #$pr (slot $slot) in tmux $TAKEOVER_TMUX_SESSION:pr-$pr"
+  else
+    nohup bash "$SCRIPT_DIR/bin/takeover-worker" "$pr" "$slot" >>"$logf" 2>&1 &
+    log "launched #$pr (slot $slot) via nohup pid $!"
+  fi
+done
+
+log "done; launched=$launched in-flight=$running"

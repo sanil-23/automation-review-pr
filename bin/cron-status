@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Show installed reviewer crons + last log lines + a queue snapshot.
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"; cd "$SCRIPT_DIR"
+[ -f .env ] && { set -a; . ./.env; set +a; }
+source lib/state.sh 2>/dev/null || true
+
+echo "== crontab =="
+crontab -l 2>/dev/null | sed -n "/pr-reviewer-takeover/,/pr-reviewer-takeover/p" || echo "(none)"
+echo
+echo "== queue snapshot =="
+for st in NEW IN_REVIEW CHANGES_REQUESTED CLEAN QUEUED_FOR_FIX FIXING AWAIT_CI READY_MERGE MERGED CLOSED_LOSER CLOSED_REDUNDANT; do
+  n=$(state_list_fsm "$st" 2>/dev/null | wc -l | tr -d ' ')
+  [ "$n" != "0" ] && printf '  %-18s %s\n' "$st" "$n"
+done
+echo
+echo "== recent log tails =="
+for f in cron-scout cron-review cron-stall; do
+  echo "--- $f ---"; tail -n 3 "logs/$f.log" 2>/dev/null || echo "(no log yet)"
+done

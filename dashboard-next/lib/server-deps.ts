@@ -14,3 +14,5 @@ export const parser = require('./parser');
 export const triggerJobs = require('./trigger-jobs');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 export const tmux = require('./tmux');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+export const scheduler = require('./scheduler');

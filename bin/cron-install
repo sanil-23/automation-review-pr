@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Install the 3 reviewer crons into the user crontab (Linux). Idempotent —
+# re-running replaces the managed block. The legacy macOS cron-on stub is left
+# untouched.
+#
+#   Cron 1  scout-assign   every 20 min   discover + assign + dedup -> REVIEW QUEUE
+#   Cron 2  review-cron     every 30 min   review changed PRs (review only)
+#   Cron 3  stall-watch     hourly         stall -> FIX QUEUE + dispatch takeover
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+BIN="$SCRIPT_DIR/bin"; LOGS="$SCRIPT_DIR/logs"; mkdir -p "$LOGS"
+BEGIN="# >>> pr-reviewer-takeover (managed) >>>"
+END="# <<< pr-reviewer-takeover (managed) <<<"
+CFG="$SCRIPT_DIR/cron-config.json"
+
+command -v crontab >/dev/null || { echo "crontab not found on PATH"; exit 1; }
+
+# Intervals come from cron-config.json (editable from the dashboard); fall back
+# to sane defaults if the file is missing or jq is unavailable.
+SCOUT_CRON="*/20 * * * *"; REVIEW_CRON="*/30 * * * *"; STALL_CRON="0 * * * *"; ENABLED="true"
+if [ -f "$CFG" ] && command -v jq >/dev/null 2>&1; then
+  ENABLED="$(jq -r '.enabled // true' "$CFG")"
+  SCOUT_CRON="$(jq -r '.scout  // "*/20 * * * *"' "$CFG")"
+  REVIEW_CRON="$(jq -r '.review // "*/30 * * * *"' "$CFG")"
+  STALL_CRON="$(jq -r '.stall  // "0 * * * *"' "$CFG")"
+fi
+
+# enabled=false → just remove the managed block and exit.
+if [ "$ENABLED" != "true" ]; then
+  echo "cron-config.enabled=false — removing managed crons"
+  exec "$BIN/cron-uninstall"
+fi
+
+block="$BEGIN
+$SCOUT_CRON $BIN/scout-assign >> $LOGS/cron-scout.log 2>&1
+$REVIEW_CRON $BIN/review-cron >> $LOGS/cron-review.log 2>&1
+$STALL_CRON $BIN/stall-watch >> $LOGS/cron-stall.log 2>&1
+$END"
+
+current="$(crontab -l 2>/dev/null || true)"
+# strip any prior managed block
+cleaned="$(printf '%s\n' "$current" | sed "/$(printf '%s' "$BEGIN" | sed 's/[][\.*^$/]/\\&/g')/,/$(printf '%s' "$END" | sed 's/[][\.*^$/]/\\&/g')/d")"
+printf '%s\n%s\n' "$cleaned" "$block" | sed '/^$/N;/^\n$/D' | crontab -
+
+echo "Installed reviewer crons:"
+crontab -l | sed -n "/pr-reviewer-takeover/,/pr-reviewer-takeover/p"
+echo
+echo "Logs: $LOGS/cron-{scout,review,stall}.log"
+echo "Remove with: bin/cron-uninstall"

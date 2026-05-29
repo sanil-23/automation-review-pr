@@ -6,6 +6,11 @@ import { useWhoamiStore } from '@/store/useWhoamiStore';
 import { StatsBar } from '@/components/StatsBar';
 import { FilterBar } from '@/components/FilterBar';
 import { PrTable } from '@/components/PrTable';
+import { QueueBoard } from '@/components/QueueBoard';
+import { TakeoverPanel } from '@/components/TakeoverPanel';
+import { CronControl } from '@/components/CronControl';
+import { IdentityBanner } from '@/components/IdentityBanner';
+import { SetupWizard } from '@/components/SetupWizard';
 import { Button } from '@/components/Button';
 import { api } from '@/lib/api';
 
@@ -109,7 +114,8 @@ export default function DashboardPage() {
             </button>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <SetupWizard />
           <Button onClick={handleSync} disabled={busy !== null} size="sm">
             {busy === 'sync' ? 'Syncing…' : 'Sync'}
           </Button>
@@ -138,7 +144,11 @@ export default function DashboardPage() {
           </span>
         </div>
       )}
+      <IdentityBanner />
       <StatsBar stats={stats} />
+      <CronControl />
+      <TakeoverPanel />
+      <QueueBoard />
       <FilterBar />
       {error && <div className="rounded border border-red-500/30 bg-red-500/10 p-3 mb-3 text-sm text-[var(--color-red)]">{error}</div>}
       <PrTable prs={prs} />

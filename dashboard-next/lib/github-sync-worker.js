@@ -11,7 +11,7 @@
 
 const { execSync } = require('child_process');
 
-const REPO = 'tinyhumansai/openhuman';
+const REPO = process.env.REVIEW_REPO || require('./repo').reviewRepo();
 const BATCH_SIZE = 20;
 
 // All fields we want from the list call. statusCheckRollup gives us inline

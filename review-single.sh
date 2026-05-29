@@ -48,6 +48,10 @@ if [ -f "${SCRIPT_DIR}/.env" ]; then
     set -a; source "${SCRIPT_DIR}/.env"; set +a
 fi
 
+# Target repo + reviewer login — parameterized (defaults preserve original use).
+REVIEW_REPO="${REVIEW_REPO:-tinyhumansai/openhuman}"
+ME="${ME:-graycyrus}"
+
 REVIEW_START=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 START_EPOCH=$(date +%s)
 
@@ -83,7 +87,7 @@ echo "--- Pre-check: Analyzing PR #${PR} ---"
 
 # Fetch PR metadata
 echo "[Pre-check] Fetching PR metadata..."
-PR_META=$(gh pr view "${PR}" --repo tinyhumansai/openhuman --json title,author,headRefName,baseRefName,state,isDraft,body,labels,reviewDecision 2>/dev/null || echo "{}")
+PR_META=$(gh pr view "${PR}" --repo "${REVIEW_REPO}" --json title,author,headRefName,baseRefName,state,isDraft,body,labels,reviewDecision 2>/dev/null || echo "{}")
 PR_TITLE=$(echo "${PR_META}" | jq -r '.title // "unknown"' 2>/dev/null || echo "unknown")
 PR_AUTHOR=$(echo "${PR_META}" | jq -r '.author.login // "unknown"' 2>/dev/null || echo "unknown")
 PR_BRANCH=$(echo "${PR_META}" | jq -r '.headRefName // "?"' 2>/dev/null || echo "?")
@@ -103,7 +107,7 @@ echo "  Review decision: ${PR_DECISION}"
 echo ""
 
 # Skip own PRs — never review your own code
-if [ "${PR_AUTHOR}" = "graycyrus" ]; then
+if [ "${PR_AUTHOR}" = "${ME}" ]; then
     echo "[Pre-check] Skipping — own PR (author: ${PR_AUTHOR})"
     echo "PR #${PR}: skipped — own PR"
     exit 0
@@ -111,7 +115,7 @@ fi
 
 # Fetch diff stat via GitHub API (gh pr diff --stat doesn't exist)
 echo "[Pre-check] Fetching diff stat..."
-DIFF_META=$(gh pr view "${PR}" --repo tinyhumansai/openhuman --json additions,deletions,changedFiles 2>/dev/null || echo "{}")
+DIFF_META=$(gh pr view "${PR}" --repo "${REVIEW_REPO}" --json additions,deletions,changedFiles 2>/dev/null || echo "{}")
 DIFF_ADDITIONS=$(echo "${DIFF_META}" | jq -r '.additions // 0' 2>/dev/null || echo "0")
 DIFF_DELETIONS=$(echo "${DIFF_META}" | jq -r '.deletions // 0' 2>/dev/null || echo "0")
 FILE_COUNT=$(echo "${DIFF_META}" | jq -r '.changedFiles // 0' 2>/dev/null || echo "0")
@@ -144,7 +148,7 @@ else
 fi
 
 # Fetch changed file names for dependency/logic detection
-CHANGED_FILES=$(gh pr diff "${PR}" --repo tinyhumansai/openhuman --name-only 2>/dev/null || true)
+CHANGED_FILES=$(gh pr diff "${PR}" --repo "${REVIEW_REPO}" --name-only 2>/dev/null || true)
 
 # Check for dependency file changes
 HAS_DEP_CHANGES="false"
@@ -168,7 +172,7 @@ fi
 
 # Check for CodeRabbit review
 HAS_CODERABBIT="false"
-CR_CHECK=$(gh api "repos/tinyhumansai/openhuman/pulls/${PR}/reviews" --jq '[.[].user.login] | map(select(. == "coderabbitai[bot]")) | length' 2>/dev/null || echo "0")
+CR_CHECK=$(gh api "repos/${REVIEW_REPO}/pulls/${PR}/reviews" --jq '[.[].user.login] | map(select(. == "coderabbitai[bot]")) | length' 2>/dev/null || echo "0")
 if [ "${CR_CHECK}" -gt 0 ] 2>/dev/null; then
     HAS_CODERABBIT="true"
     echo "[Pre-check] CodeRabbit has reviewed (${CR_CHECK} review(s))"
@@ -180,7 +184,7 @@ fi
 echo "[Pre-check] Checking for human review blocks..."
 HUMAN_BLOCK=""
 HUMAN_BLOCK_REVIEWER=""
-REVIEWS_JSON=$(gh api "repos/tinyhumansai/openhuman/pulls/${PR}/reviews" 2>/dev/null || echo "[]")
+REVIEWS_JSON=$(gh api "repos/${REVIEW_REPO}/pulls/${PR}/reviews" 2>/dev/null || echo "[]")
 if [ "${REVIEWS_JSON}" != "[]" ]; then
     # Find CHANGES_REQUESTED from non-bot users
     HUMAN_BLOCK_REVIEWER=$(echo "${REVIEWS_JSON}" | jq -r '[.[] | select(.state == "CHANGES_REQUESTED" and (.user.login | test("\\[bot\\]$") | not))] | last | .user.login // empty' 2>/dev/null || true)
@@ -194,10 +198,10 @@ fi
 
 # Check if we already have an active approval on this commit (prevent rubber-stamp re-reviews)
 echo "[Pre-check] Checking for existing approval..."
-LATEST_COMMIT=$(gh pr view "${PR}" --repo tinyhumansai/openhuman --json commits --jq '.commits[-1].oid' 2>/dev/null || echo "")
+LATEST_COMMIT=$(gh pr view "${PR}" --repo "${REVIEW_REPO}" --json commits --jq '.commits[-1].oid' 2>/dev/null || echo "")
 ALREADY_APPROVED="false"
 if [ -n "${LATEST_COMMIT}" ] && [ "${REVIEWS_JSON}" != "[]" ]; then
-    EXISTING_APPROVAL=$(echo "${REVIEWS_JSON}" | jq -r "[.[] | select(.user.login == \"graycyrus\" and .state == \"APPROVED\" and .commit_id == \"${LATEST_COMMIT}\")] | length" 2>/dev/null || echo "0")
+    EXISTING_APPROVAL=$(echo "${REVIEWS_JSON}" | jq -r "[.[] | select(.user.login == \"${ME}\" and .state == \"APPROVED\" and .commit_id == \"${LATEST_COMMIT}\")] | length" 2>/dev/null || echo "0")
     if [ "${EXISTING_APPROVAL}" -gt 0 ] 2>/dev/null; then
         ALREADY_APPROVED="true"
         echo "[Pre-check] Already approved this commit — skipping re-review"
@@ -212,7 +216,7 @@ fi
 # Check CI status
 echo "[Pre-check] Checking CI status..."
 CI_STATUS="unknown"
-CI_OUTPUT=$(gh pr checks "${PR}" --repo tinyhumansai/openhuman 2>/dev/null || echo "")
+CI_OUTPUT=$(gh pr checks "${PR}" --repo "${REVIEW_REPO}" 2>/dev/null || echo "")
 if [ -n "${CI_OUTPUT}" ]; then
     CI_FAIL=$(echo "${CI_OUTPUT}" | grep -cE "fail|X" || true)
     CI_CANCEL=$(echo "${CI_OUTPUT}" | grep -cE "cancel" || true)
@@ -295,7 +299,7 @@ PROMPT=""
 SECTIONS_INCLUDED="header, core-steps"
 
 # Always included
-PROMPT+="$(sed "s/__PR_NUMBER__/${PR}/g" "${PARTS_DIR}/header.md")"$'\n\n'
+PROMPT+="$(sed -e "s/__PR_NUMBER__/${PR}/g" -e "s#__TARGET_REPO__#${REVIEW_REPO}#g" -e "s/__REVIEWER_LOGIN__/${ME}/g" "${PARTS_DIR}/header.md")"$'\n\n'
 
 # Inject prompt injection warning if detected
 if [ -n "${INJECTION_WARNING}" ]; then

@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Cron 2 — review-cron (REVIEW ONLY, never fixes).
+#
+# Drains the REVIEW QUEUE (fsm_state IN_REVIEW / CHANGES_REQUESTED). For each
+# PR whose GitHub state_signature has CHANGED since the last review, runs
+# review-single.sh (posting as $ME via reviewers/$REVIEWER.md) and records the
+# new signature. Unchanged PRs are skipped — the "only re-review if changed"
+# rule. PRs owned by Cron 3 (QUEUED_FOR_FIX+) are never touched.
+#
+# Idempotent: safe to run every 30 min. Honors MAX_REVIEWS per cycle.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$SCRIPT_DIR"
+[ -f .env ] && { set -a; . ./.env; set +a; }
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1 || true
+
+: "${REVIEW_REPO:?set REVIEW_REPO}"; : "${ME:?set ME}"
+: "${REVIEWER:=sanil}"; : "${MAX_REVIEWS:=5}"
+source lib/state.sh
+
+log() { echo "[$(_now)] [review] $*"; }
+
+LOCK="/tmp/review-cron.lock"
+exec 9>"$LOCK"; flock -n 9 || { log "another review-cron is running — skip"; exit 0; }
+
+reviewed=0
+for pr in $(state_list_fsm IN_REVIEW CHANGES_REQUESTED); do
+  [ "$reviewed" -ge "$MAX_REVIEWS" ] && { log "hit MAX_REVIEWS=$MAX_REVIEWS — rest next cycle"; break; }
+
+  # Never review our own PRs or ones Cron 3 has taken over.
+  if [ "$(state_get "$pr" .is_me_author)" = "true" ]; then log "#$pr is mine — skip"; continue; fi
+  if state_owned_by_takeover "$pr"; then log "#$pr owned by takeover — skip"; continue; fi
+
+  # Gate: only review if the PR changed since last time.
+  if ! signature_changed "$pr"; then
+    log "#$pr unchanged since last review — skip"
+    continue
+  fi
+
+  log "#$pr changed — reviewing"
+  CRON_MODE=1 REVIEWER="$REVIEWER" REVIEW_REPO="$REVIEW_REPO" ME="$ME" \
+    bash "$SCRIPT_DIR/review-single.sh" "$pr" >>"$SCRIPT_DIR/logs/review-cron-$pr.log" 2>&1 || {
+      log "#$pr review-single failed (see logs/review-cron-$pr.log)"
+      continue
+    }
+  reviewed=$((reviewed+1))
+
+  # Record signature + outcome from a fresh snapshot.
+  snap="$(pr_snapshot "$pr")"
+  sig="$(signature_of "$snap")"
+  state_set "$pr" last_reviewed_signature "$sig"
+  state_set "$pr" signature "$sig"
+  state_set "$pr" last_review_at "$(_now)"
+  dec="$(jq -r '.reviewDecision // "NONE"' <<<"$snap")"
+  state_set "$pr" review_decision "$dec"
+  state_set "$pr" ci_state "$(ci_rollup_state "$snap")"
+  coderabbit_approved "$snap" && state_set_json "$pr" coderabbit_approved true \
+                              || state_set_json "$pr" coderabbit_approved false
+
+  case "$dec" in
+    APPROVED)          fsm_set "$pr" CLEAN "review APPROVED" ;;
+    CHANGES_REQUESTED) fsm_set "$pr" CHANGES_REQUESTED "review requested changes" ;;
+    *)                 fsm_set "$pr" IN_REVIEW "commented (CI/conflicts or pending)" ;;
+  esac
+  log "#$pr reviewed -> $(state_get "$pr" .fsm_state) (decision=$dec)"
+done
+
+log "done; reviewed=$reviewed"
