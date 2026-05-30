@@ -5,8 +5,9 @@ import { Badge } from './Badge';
 import { FsmBadge } from './FsmBadge';
 
 type StateRow = {
-  pr_id: number; title?: string; author?: string; fsm_state?: string;
-  ci_state?: string; coderabbit_approved?: number; stall_age_hours?: number;
+  pr_id: number; title?: string; author?: string; url?: string; fsm_state?: string;
+  ci_state?: string; coderabbit_approved?: number; review_decision?: string;
+  last_review_at?: string; stall_age_hours?: number;
   linked_issue?: number; winner_pr?: number; dedup_verdict?: string;
   fix_phase?: string; worker_slot?: number; last_error?: string;
 };
@@ -20,47 +21,72 @@ const STALL_HOURS = 24;
 
 async function ejectPr(pr: number) {
   await fetch('/api/queue/eject', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ pr }),
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pr }),
   });
 }
+async function reviewPr(pr: number) {
+  await fetch(`/api/queue/review/${pr}`, { method: 'POST' });
+}
 
-function Row({ r, onEject }: { r: StateRow; onEject: (pr: number) => void }) {
+function ago(iso?: string) {
+  if (!iso) return null;
+  const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (Number.isNaN(m) || m < 0) return null;
+  return m < 60 ? `${m}m ago` : m < 1440 ? `${Math.floor(m / 60)}h ago` : `${Math.floor(m / 1440)}d ago`;
+}
+function ciTone(ci?: string) {
+  if (ci === 'SUCCESS') return 'text-[var(--color-green)]';
+  if (ci === 'FAILURE') return 'text-[var(--color-red)]';
+  if (ci === 'PENDING') return 'text-[var(--color-yellow)]';
+  return 'text-[var(--color-text-muted)]';
+}
+
+function Row({ r, onEject, onReview }: { r: StateRow; onEject: (pr: number) => void; onReview: (pr: number) => void }) {
   const stalled = (r.stall_age_hours ?? 0) >= STALL_HOURS;
+  const inReview = r.fsm_state === 'IN_REVIEW' || r.fsm_state === 'CHANGES_REQUESTED' || r.fsm_state === 'CLEAN' || r.fsm_state === 'NEW';
+  const lastReviewed = ago(r.last_review_at);
   return (
-    <div className="flex items-center justify-between gap-2 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-2 py-1.5 text-xs">
-      <div className="min-w-0">
-        <Link href={`/pr/${r.pr_id}`} className="font-medium text-[var(--color-accent)] hover:underline">#{r.pr_id}</Link>
-        <span className="ml-2 truncate text-[var(--color-text-muted)]">{r.title || ''}</span>
-        <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-[var(--color-text-muted)]">
-          {r.author && <span>@{r.author}</span>}
-          {r.linked_issue && <span>· issue #{r.linked_issue}</span>}
-          {r.ci_state && <span>· CI {r.ci_state}</span>}
-          {r.coderabbit_approved ? <span>· CR ✓</span> : null}
-          {r.fix_phase && <span>· {r.fix_phase}</span>}
+    <div className="rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-2 py-1.5 text-xs">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <Link href={`/pr/${r.pr_id}`} className="font-medium text-[var(--color-accent)] hover:underline">#{r.pr_id}</Link>
+            <span className="truncate text-[var(--color-text-muted)]">{r.title || ''}</span>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+            {r.author && <span className="text-[var(--color-text-muted)]">@{r.author}</span>}
+            {r.linked_issue ? <span className="text-[var(--color-text-muted)]">issue #{r.linked_issue}</span> : null}
+            {r.ci_state && <span className={ciTone(r.ci_state)}>CI {r.ci_state}</span>}
+            <span className={r.coderabbit_approved ? 'text-[var(--color-green)]' : 'text-[var(--color-text-muted)]'}>CR {r.coderabbit_approved ? '✓' : '—'}</span>
+            {r.review_decision && r.review_decision !== 'NONE' && <span className="text-[var(--color-text-muted)]">{r.review_decision.toLowerCase().replace(/_/g, ' ')}</span>}
+            {r.fix_phase && <span className="text-[var(--color-accent)]">{r.fix_phase}</span>}
+            <span className="text-[var(--color-text-muted)]">{lastReviewed ? `reviewed ${lastReviewed}` : 'not reviewed'}</span>
+            {inReview && <span className={stalled ? 'text-[var(--color-red)]' : 'text-[var(--color-text-muted)]'}>· silent {r.stall_age_hours ?? 0}h/{STALL_HOURS}h</span>}
+          </div>
         </div>
-      </div>
-      <div className="flex shrink-0 items-center gap-1.5">
-        <div className="flex flex-col items-end gap-0.5">
+        <div className="flex shrink-0 flex-col items-end gap-1">
           <FsmBadge state={r.fsm_state} />
-          {r.fsm_state && (r.fsm_state === 'IN_REVIEW' || r.fsm_state === 'CHANGES_REQUESTED') && (
-            <span className={stalled ? 'text-[var(--color-red)]' : 'text-[var(--color-text-muted)]'}>
-              silent {r.stall_age_hours ?? 0}h / {STALL_HOURS}h
-            </span>
-          )}
+          <div className="flex items-center gap-1">
+            {inReview && (
+              <button title="Review this PR now"
+                onClick={() => onReview(r.pr_id)}
+                className="rounded border border-[var(--color-border)] px-1.5 py-0.5 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">review</button>
+            )}
+            {r.url && (
+              <a href={r.url} target="_blank" rel="noreferrer" title="Open on GitHub"
+                className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-accent)]">↗</a>
+            )}
+            <button title="Remove from queue (DISMISS)"
+              onClick={() => { if (confirm(`Remove PR #${r.pr_id} from the queue?`)) onEject(r.pr_id); }}
+              className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-[var(--color-text-muted)] hover:border-[var(--color-red)] hover:text-[var(--color-red)]">×</button>
+          </div>
         </div>
-        <button
-          title="Remove from queue (DISMISS)"
-          onClick={() => { if (confirm(`Remove PR #${r.pr_id} from the queue?`)) onEject(r.pr_id); }}
-          className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-[var(--color-text-muted)] hover:border-[var(--color-red)] hover:text-[var(--color-red)]"
-        >×</button>
       </div>
     </div>
   );
 }
 
-function Lane({ title, tone, rows, onEject }: { title: string; tone: string; rows: StateRow[]; onEject: (pr: number) => void }) {
+function Lane({ title, tone, rows, onEject, onReview }: { title: string; tone: string; rows: StateRow[]; onEject: (pr: number) => void; onReview: (pr: number) => void }) {
   return (
     <div className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] p-3">
       <div className="mb-2 flex items-center justify-between">
@@ -69,7 +95,7 @@ function Lane({ title, tone, rows, onEject }: { title: string; tone: string; row
       </div>
       <div className="flex flex-col gap-1.5">
         {rows.length === 0 && <div className="py-3 text-center text-xs text-[var(--color-text-muted)]">empty</div>}
-        {rows.map((r) => <Row key={r.pr_id} r={r} onEject={onEject} />)}
+        {rows.map((r) => <Row key={r.pr_id} r={r} onEject={onEject} onReview={onReview} />)}
       </div>
     </div>
   );
@@ -84,13 +110,14 @@ export function QueueBoard() {
     return () => clearInterval(t);
   }, []);
   const onEject = async (pr: number) => { await ejectPr(pr); load(); };
+  const onReview = async (pr: number) => { await reviewPr(pr); setTimeout(load, 1000); };
   if (!data) return null;
 
   return (
     <div className="mb-5">
-      <div className="flex gap-3">
-        <Lane title="REVIEW QUEUE" tone="var(--color-accent)" rows={data.review} onEject={onEject} />
-        <Lane title="FIX QUEUE" tone="var(--color-yellow)" rows={data.fix} onEject={onEject} />
+      <div className="flex gap-3 items-start">
+        <Lane title="REVIEW QUEUE" tone="var(--color-accent)" rows={data.review} onEject={onEject} onReview={onReview} />
+        <Lane title="FIX QUEUE" tone="var(--color-yellow)" rows={data.fix} onEject={onEject} onReview={onReview} />
       </div>
 
       {data.issueGroups.length > 0 && (

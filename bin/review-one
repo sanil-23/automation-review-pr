@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Review a single PR on demand (dashboard "Review now") and update its FSM
+# state — same per-PR logic as review-cron, but unconditional (ignores the
+# signature gate, since the user explicitly asked).
+#
+# Usage: review-one <pr>
+set -uo pipefail
+PR="${1:?usage: review-one <pr>}"
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$SCRIPT_DIR"
+source "$SCRIPT_DIR/lib/config.sh"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1 || true
+: "${REVIEW_REPO:?set REVIEW_REPO}"; : "${ME:?set ME}"; : "${REVIEWER:=sanil}"
+source lib/state.sh
+log() { echo "[$(_now)] [review-one #$PR] $*"; }
+
+if [ "$(state_get "$PR" .is_me_author)" = "true" ]; then log "own PR — skip"; exit 0; fi
+if state_owned_by_takeover "$PR"; then log "owned by takeover — skip"; exit 0; fi
+
+log "reviewing"
+CRON_MODE=1 REVIEWER="$REVIEWER" REVIEW_REPO="$REVIEW_REPO" ME="$ME" \
+  bash "$SCRIPT_DIR/review-single.sh" "$PR" >>"$SCRIPT_DIR/logs/review-one-$PR.log" 2>&1 || {
+    log "review-single failed (see logs/review-one-$PR.log)"; state_set "$PR" last_error "review failed"; exit 1; }
+
+snap="$(pr_snapshot "$PR")"
+sig="$(signature_of "$snap")"
+state_set "$PR" last_reviewed_signature "$sig"
+state_set "$PR" signature "$sig"
+state_set "$PR" last_review_at "$(_now)"
+dec="$(jq -r '.reviewDecision // "NONE"' <<<"$snap")"
+state_set "$PR" review_decision "$dec"
+state_set "$PR" ci_state "$(ci_rollup_state "$snap")"
+coderabbit_approved "$snap" && state_set_json "$PR" coderabbit_approved true || state_set_json "$PR" coderabbit_approved false
+case "$dec" in
+  APPROVED)          fsm_set "$PR" CLEAN "review APPROVED (manual)" ;;
+  CHANGES_REQUESTED) fsm_set "$PR" CHANGES_REQUESTED "review requested changes (manual)" ;;
+  *)                 fsm_set "$PR" IN_REVIEW "commented (manual)" ;;
+esac
+log "done -> $(state_get "$PR" .fsm_state) (decision=$dec)"
