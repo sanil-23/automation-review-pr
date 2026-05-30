@@ -12,20 +12,21 @@ type StateRow = {
   fix_phase?: string; worker_slot?: number; last_error?: string;
 };
 type QueuesResp = {
-  review: StateRow[]; fix: StateRow[];
+  review: StateRow[]; fix: StateRow[]; closed: StateRow[];
   issueGroups: { issue: number; prs: StateRow[] }[];
   counts: Record<string, number>;
 };
 
 const STALL_HOURS = 24;
+const REVIEW_STATES = ['NEW', 'IN_REVIEW', 'CHANGES_REQUESTED', 'CLEAN'];
 
-async function ejectPr(pr: number) {
-  await fetch('/api/queue/eject', {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pr }),
-  });
-}
-async function reviewPr(pr: number) {
-  await fetch(`/api/queue/review/${pr}`, { method: 'POST' });
+type Kind = 'review' | 'approve' | 'close' | 'takeover' | 'merge' | 'requeue' | 'confirm-close' | 'eject';
+
+async function dispatch(pr: number, kind: Kind) {
+  if (kind === 'eject') return fetch('/api/queue/eject', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pr }) });
+  if (kind === 'review') return fetch(`/api/queue/review/${pr}`, { method: 'POST' });
+  if (kind === 'merge') return fetch(`/api/queue/merge/${pr}`, { method: 'POST' });
+  return fetch(`/api/queue/action/${pr}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: kind }) });
 }
 
 function ago(iso?: string) {
@@ -41,9 +42,32 @@ function ciTone(ci?: string) {
   return 'text-[var(--color-text-muted)]';
 }
 
-function Row({ r, onEject, onReview }: { r: StateRow; onEject: (pr: number) => void; onReview: (pr: number) => void }) {
+const btn = 'rounded border border-[var(--color-border)] px-1.5 py-0.5';
+const btnHover = `${btn} hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]`;
+const btnDanger = `${btn} text-[var(--color-text-muted)] hover:border-[var(--color-red)] hover:text-[var(--color-red)]`;
+
+function Actions({ r, act }: { r: StateRow; act: (pr: number, kind: Kind, confirm?: string) => void }) {
+  const s = r.fsm_state || '';
+  const inReview = REVIEW_STATES.includes(s);
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-1">
+      {inReview && <button title="Review this PR now" onClick={() => act(r.pr_id, 'review')} className={btnHover}>review</button>}
+      {inReview && <button title="Approve this PR" onClick={() => act(r.pr_id, 'approve', `Approve PR #${r.pr_id}?`)} className={btnHover}>approve</button>}
+      {inReview && <button title="Take over now (skip the stall wait)" onClick={() => act(r.pr_id, 'takeover', `Take over PR #${r.pr_id} now (fix + CI)?`)} className={btnHover}>take over</button>}
+      {inReview && <button title="Close this PR on GitHub" onClick={() => act(r.pr_id, 'close', `Close PR #${r.pr_id} on GitHub?`)} className={btnDanger}>close</button>}
+      {s === 'READY_MERGE' && <button title="Merge this PR" onClick={() => act(r.pr_id, 'merge', `Merge PR #${r.pr_id}?`)} className={btnHover}>merge</button>}
+      {s === 'DISMISSED' && <button title="Re-queue for review" onClick={() => act(r.pr_id, 'requeue')} className={btnHover}>re-queue</button>}
+      {s === 'CLOSED_LOSER' && <button title="Confirm close on GitHub" onClick={() => act(r.pr_id, 'confirm-close', `Close loser PR #${r.pr_id} on GitHub?`)} className={btnDanger}>confirm close</button>}
+      {s === 'CLOSED_LOSER' && <button title="Re-queue instead" onClick={() => act(r.pr_id, 'requeue')} className={btnHover}>re-queue</button>}
+      {r.url && <a href={r.url} target="_blank" rel="noreferrer" title="Open on GitHub" className={`${btn} text-[var(--color-text-muted)] hover:text-[var(--color-accent)]`}>↗</a>}
+      <button title="Remove from queue (DISMISS)" onClick={() => act(r.pr_id, 'eject', `Remove PR #${r.pr_id} from the queue?`)} className={btnDanger}>×</button>
+    </div>
+  );
+}
+
+function Row({ r, act }: { r: StateRow; act: (pr: number, kind: Kind, confirm?: string) => void }) {
   const stalled = (r.stall_age_hours ?? 0) >= STALL_HOURS;
-  const inReview = r.fsm_state === 'IN_REVIEW' || r.fsm_state === 'CHANGES_REQUESTED' || r.fsm_state === 'CLEAN' || r.fsm_state === 'NEW';
+  const inReview = REVIEW_STATES.includes(r.fsm_state || '');
   const lastReviewed = ago(r.last_review_at);
   return (
     <div className="rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-2 py-1.5 text-xs">
@@ -60,33 +84,22 @@ function Row({ r, onEject, onReview }: { r: StateRow; onEject: (pr: number) => v
             <span className={r.coderabbit_approved ? 'text-[var(--color-green)]' : 'text-[var(--color-text-muted)]'}>CR {r.coderabbit_approved ? '✓' : '—'}</span>
             {r.review_decision && r.review_decision !== 'NONE' && <span className="text-[var(--color-text-muted)]">{r.review_decision.toLowerCase().replace(/_/g, ' ')}</span>}
             {r.fix_phase && <span className="text-[var(--color-accent)]">{r.fix_phase}</span>}
+            {r.dedup_verdict && <span className="text-[var(--color-text-muted)]">{r.dedup_verdict}</span>}
             <span className="text-[var(--color-text-muted)]">{lastReviewed ? `reviewed ${lastReviewed}` : 'not reviewed'}</span>
             {inReview && <span className={stalled ? 'text-[var(--color-red)]' : 'text-[var(--color-text-muted)]'}>· silent {r.stall_age_hours ?? 0}h/{STALL_HOURS}h</span>}
           </div>
+          {r.last_error && <div className="mt-0.5 text-[11px] text-[var(--color-red)]">{r.last_error}</div>}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <FsmBadge state={r.fsm_state} />
-          <div className="flex items-center gap-1">
-            {inReview && (
-              <button title="Review this PR now"
-                onClick={() => onReview(r.pr_id)}
-                className="rounded border border-[var(--color-border)] px-1.5 py-0.5 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">review</button>
-            )}
-            {r.url && (
-              <a href={r.url} target="_blank" rel="noreferrer" title="Open on GitHub"
-                className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-accent)]">↗</a>
-            )}
-            <button title="Remove from queue (DISMISS)"
-              onClick={() => { if (confirm(`Remove PR #${r.pr_id} from the queue?`)) onEject(r.pr_id); }}
-              className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-[var(--color-text-muted)] hover:border-[var(--color-red)] hover:text-[var(--color-red)]">×</button>
-          </div>
+          <Actions r={r} act={act} />
         </div>
       </div>
     </div>
   );
 }
 
-function Lane({ title, tone, rows, onEject, onReview }: { title: string; tone: string; rows: StateRow[]; onEject: (pr: number) => void; onReview: (pr: number) => void }) {
+function Lane({ title, tone, rows, act }: { title: string; tone: string; rows: StateRow[]; act: (pr: number, kind: Kind, confirm?: string) => void }) {
   return (
     <div className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] p-3">
       <div className="mb-2 flex items-center justify-between">
@@ -95,7 +108,7 @@ function Lane({ title, tone, rows, onEject, onReview }: { title: string; tone: s
       </div>
       <div className="flex flex-col gap-1.5">
         {rows.length === 0 && <div className="py-3 text-center text-xs text-[var(--color-text-muted)]">empty</div>}
-        {rows.map((r) => <Row key={r.pr_id} r={r} onEject={onEject} onReview={onReview} />)}
+        {rows.map((r) => <Row key={r.pr_id} r={r} act={act} />)}
       </div>
     </div>
   );
@@ -103,21 +116,26 @@ function Lane({ title, tone, rows, onEject, onReview }: { title: string; tone: s
 
 export function QueueBoard() {
   const [data, setData] = useState<QueuesResp | null>(null);
+  const [showClosed, setShowClosed] = useState(false);
   const load = () => fetch('/api/queues').then((r) => r.json()).then(setData).catch(() => {});
   useEffect(() => {
     load();
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
   }, []);
-  const onEject = async (pr: number) => { await ejectPr(pr); load(); };
-  const onReview = async (pr: number) => { await reviewPr(pr); setTimeout(load, 1000); };
+  const act = async (pr: number, kind: Kind, confirmMsg?: string) => {
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    await dispatch(pr, kind);
+    setTimeout(load, 800);
+  };
   if (!data) return null;
+  const closed = data.closed || [];
 
   return (
     <div className="mb-5">
       <div className="flex gap-3 items-start">
-        <Lane title="REVIEW QUEUE" tone="var(--color-accent)" rows={data.review} onEject={onEject} onReview={onReview} />
-        <Lane title="FIX QUEUE" tone="var(--color-yellow)" rows={data.fix} onEject={onEject} onReview={onReview} />
+        <Lane title="REVIEW QUEUE" tone="var(--color-accent)" rows={data.review} act={act} />
+        <Lane title="FIX QUEUE" tone="var(--color-yellow)" rows={data.fix} act={act} />
       </div>
 
       {data.issueGroups.length > 0 && (
@@ -136,6 +154,19 @@ export function QueueBoard() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {closed.length > 0 && (
+        <div className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] p-3">
+          <button onClick={() => setShowClosed((o) => !o)} className="flex items-center gap-2 text-sm font-semibold">
+            <span>{showClosed ? '▾' : '▸'}</span> Closed / Dismissed <Badge tone="gray">{closed.length}</Badge>
+          </button>
+          {showClosed && (
+            <div className="mt-2 flex flex-col gap-1.5">
+              {closed.map((r) => <Row key={r.pr_id} r={r} act={act} />)}
+            </div>
+          )}
         </div>
       )}
     </div>

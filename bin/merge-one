@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Merge a single PR from the dashboard (manual confirm of a READY_MERGE PR).
+# Uses plain `gh pr merge` — requires the repo's gate (approval + green checks);
+# no --admin (we may not own the repo). Updates FSM state on the outcome.
+#
+# Usage: merge-one <pr>
+set -uo pipefail
+PR="${1:?usage: merge-one <pr>}"
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"; cd "$SCRIPT_DIR"
+source "$SCRIPT_DIR/lib/config.sh"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1 || true
+: "${REVIEW_REPO:?set REVIEW_REPO}"
+source lib/state.sh
+log() { echo "[$(_now)] [merge #$PR] $*"; }
+
+state_set "$PR" fix_phase merge
+log "merging via gh (squash, delete branch)"
+if gh pr merge "$PR" -R "$REVIEW_REPO" --squash --delete-branch >>"$SCRIPT_DIR/logs/merge-$PR.log" 2>&1; then
+  fsm_set "$PR" MERGED "merged via dashboard"
+  log "MERGED"
+else
+  state_set "$PR" last_error "merge failed — needs APPROVED review + green required checks"
+  fsm_set "$PR" READY_MERGE "merge failed; manual check"
+  log "merge FAILED (gate not satisfied?)"
+  exit 1
+fi

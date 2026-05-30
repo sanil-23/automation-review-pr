@@ -652,7 +652,9 @@ const STATE_SELECT = `
 
 function _placeholders(arr) { return arr.map(() => '?').join(','); }
 
-// { review: [...], fix: [...] } — the two-queue board.
+const CLOSED_STATES = ['DISMISSED', 'CLOSED_LOSER', 'CLOSED_REDUNDANT', 'CLOSED'];
+
+// { review: [...], fix: [...], closed: [...] } — the queue board.
 function queues() {
   const db = getDb();
   const review = db.prepare(
@@ -661,7 +663,10 @@ function queues() {
   const fix = db.prepare(
     `${STATE_SELECT} WHERE s.fsm_state IN (${_placeholders(FIX_QUEUE_STATES)})
      ORDER BY s.worker_slot ASC, s.pr_id DESC`).all(...FIX_QUEUE_STATES);
-  return { review, fix };
+  const closed = db.prepare(
+    `${STATE_SELECT} WHERE s.fsm_state IN (${_placeholders(CLOSED_STATES)})
+     ORDER BY s.updated_at DESC LIMIT 50`).all(...CLOSED_STATES);
+  return { review, fix, closed };
 }
 
 // Active takeover workers, keyed by slot.

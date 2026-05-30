@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Per-PR queue actions invoked from the dashboard.
+#
+# Usage: queue-action <action> <pr>
+#   approve        gh approve the PR  -> CLEAN
+#   close          gh close the PR    -> CLOSED
+#   requeue        bring a DISMISSED/closed PR back -> IN_REVIEW
+#   confirm-close  actually close a flagged dedup loser (manual autonomy)
+#   takeover       force into the FIX QUEUE now + dispatch workers
+set -uo pipefail
+ACTION="${1:?usage: queue-action <action> <pr>}"; PR="${2:?pr required}"
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"; cd "$SCRIPT_DIR"
+source "$SCRIPT_DIR/lib/config.sh"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1 || true
+: "${REVIEW_REPO:?set REVIEW_REPO}"
+source lib/state.sh
+
+case "$ACTION" in
+  approve)
+    gh pr review "$PR" -R "$REVIEW_REPO" --approve --body "Approved." >/dev/null 2>&1 \
+      && { fsm_set "$PR" CLEAN "approved via dashboard"; state_set "$PR" review_decision APPROVED; echo "approved #$PR"; } \
+      || { echo "approve failed for #$PR" >&2; exit 1; } ;;
+  close)
+    gh pr close "$PR" -R "$REVIEW_REPO" >/dev/null 2>&1 \
+      && { fsm_set "$PR" CLOSED "closed via dashboard"; echo "closed #$PR"; } \
+      || { echo "close failed for #$PR" >&2; exit 1; } ;;
+  requeue)
+    state_set "$PR" last_error ""
+    fsm_set "$PR" IN_REVIEW "requeued via dashboard"
+    echo "requeued #$PR -> IN_REVIEW" ;;
+  confirm-close)
+    winner="$(state_get "$PR" .winner_pr)"
+    gh pr comment "$PR" -R "$REVIEW_REPO" --body "Closing as duplicate${winner:+ of #$winner}." >/dev/null 2>&1 || true
+    gh pr close "$PR" -R "$REVIEW_REPO" >/dev/null 2>&1 \
+      && { fsm_set "$PR" CLOSED_LOSER "loser closed via dashboard"; echo "loser #$PR closed"; } \
+      || { echo "close failed for #$PR" >&2; exit 1; } ;;
+  takeover)
+    state_set "$PR" queued_for_fix_at "$(_now)"
+    state_set "$PR" last_error ""
+    fsm_set "$PR" QUEUED_FOR_FIX "manual takeover via dashboard"
+    nohup bash "$SCRIPT_DIR/bin/takeover" >>"$SCRIPT_DIR/logs/cron-stall.log" 2>&1 < /dev/null & disown 2>/dev/null
+    echo "#$PR -> QUEUED_FOR_FIX; takeover dispatched" ;;
+  *) echo "unknown action: $ACTION" >&2; exit 1 ;;
+esac
