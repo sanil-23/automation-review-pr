@@ -16,6 +16,7 @@ log() { echo "[$(_now)] [review-one #$PR] $*"; }
 
 if [ "$(state_get "$PR" .is_me_author)" = "true" ]; then log "own PR — skip"; exit 0; fi
 if state_owned_by_takeover "$PR"; then log "owned by takeover — skip"; exit 0; fi
+if reconcile_terminal "$PR"; then log "no longer open on GitHub — removed from queue"; exit 0; fi
 
 log "reviewing"
 CRON_MODE=1 REVIEWER="$REVIEWER" REVIEW_REPO="$REVIEW_REPO" ME="$ME" \

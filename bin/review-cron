@@ -31,6 +31,8 @@ for pr in $(state_list_fsm IN_REVIEW CHANGES_REQUESTED); do
   # Never review our own PRs or ones Cron 3 has taken over.
   if [ "$(state_get "$pr" .is_me_author)" = "true" ]; then log "#$pr is mine — skip"; continue; fi
   if state_owned_by_takeover "$pr"; then log "#$pr owned by takeover — skip"; continue; fi
+  # Drop PRs that merged/closed on GitHub out of the queue.
+  if reconcile_terminal "$pr"; then log "#$pr no longer open — removed from queue"; continue; fi
 
   # Gate: only review if the PR changed since last time.
   if ! signature_changed "$pr"; then

@@ -168,6 +168,19 @@ signature_changed() {
   [ "$cur" != "$last" ]
 }
 
+# reconcile_terminal <pr> — if the PR is no longer OPEN on GitHub, move it to a
+# terminal state (MERGED / CLOSED) so it drops out of the queue, and return 0
+# (caller should skip it). Returns 1 if it's still open.
+reconcile_terminal() {
+  local pr="$1" st
+  st="$(gh pr view "$pr" -R "$REVIEW_REPO" --json state --jq '.state' 2>/dev/null)"
+  case "$st" in
+    MERGED) fsm_set "$pr" MERGED "merged on GitHub — removed from queue"; return 0 ;;
+    CLOSED) fsm_set "$pr" CLOSED "closed on GitHub — removed from queue"; return 0 ;;
+  esac
+  return 1
+}
+
 # author_last_activity <pr> <author> — ISO ts of the author's most recent
 # action on the PR (commit, issue comment, review, or review comment). Empty
 # if none. Used by Cron 3 to measure author silence.

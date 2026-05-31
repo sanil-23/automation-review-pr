@@ -26,6 +26,8 @@ exec 9>"$LOCK"; flock -n 9 || { log "another stall-watch is running — skip"; e
 # Only review-queue states are takeover-eligible. Cron 3-owned + terminal skip.
 for pr in $(state_list_fsm IN_REVIEW CHANGES_REQUESTED CLEAN); do
   [ "$(state_get "$pr" .is_me_author)" = "true" ] && continue
+  # Drop merged/closed PRs from the queue before checking stall.
+  if reconcile_terminal "$pr"; then log "#$pr no longer open — removed from queue"; continue; fi
   author="$(state_get "$pr" .author)"
   [ -z "$author" ] && author="$(gh pr view "$pr" -R "$REVIEW_REPO" --json author --jq .author.login 2>/dev/null)"
   [ "$author" = "$ME" ] && continue
