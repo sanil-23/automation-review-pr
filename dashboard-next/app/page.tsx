@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { QueueStats } from '@/components/QueueStats';
 import { QueueBoard } from '@/components/QueueBoard';
 import { TakeoverPanel } from '@/components/TakeoverPanel';
+import { ActivityBar } from '@/components/ActivityBar';
 import { CronControl } from '@/components/CronControl';
 import { Button } from '@/components/Button';
 import { api } from '@/lib/api';
@@ -39,6 +40,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <ActivityBar />
       <QueueStats />
       <CronControl />
       <TakeoverPanel />

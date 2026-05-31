@@ -65,17 +65,24 @@ function Actions({ r, act }: { r: StateRow; act: (pr: number, kind: Kind, confir
   );
 }
 
-function Row({ r, act }: { r: StateRow; act: (pr: number, kind: Kind, confirm?: string) => void }) {
+function Row({ r, act, live }: { r: StateRow; act: (pr: number, kind: Kind, confirm?: string) => void; live?: boolean }) {
   const stalled = (r.stall_age_hours ?? 0) >= STALL_HOURS;
   const inReview = REVIEW_STATES.includes(r.fsm_state || '');
   const lastReviewed = ago(r.last_review_at);
   return (
-    <div className="rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-2 py-1.5 text-xs">
+    <div className={'rounded border px-2 py-1.5 text-xs ' + (live ? 'border-yellow-500/40 bg-yellow-500/10' : 'border-[var(--color-border)] bg-[var(--color-bg-secondary)]')}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
+            {live && (
+              <span className="relative flex h-2 w-2" title="reviewing now">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-yellow-500" />
+              </span>
+            )}
             <Link href={`/pr/${r.pr_id}`} className="font-medium text-[var(--color-accent)] hover:underline">#{r.pr_id}</Link>
             <span className="truncate text-[var(--color-text-muted)]">{r.title || ''}</span>
+            {live && <span className="text-[11px] text-[var(--color-yellow)]">reviewing…</span>}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
             {r.author && <span className="text-[var(--color-text-muted)]">@{r.author}</span>}
@@ -99,7 +106,7 @@ function Row({ r, act }: { r: StateRow; act: (pr: number, kind: Kind, confirm?: 
   );
 }
 
-function Lane({ title, tone, rows, act }: { title: string; tone: string; rows: StateRow[]; act: (pr: number, kind: Kind, confirm?: string) => void }) {
+function Lane({ title, tone, rows, act, live }: { title: string; tone: string; rows: StateRow[]; act: (pr: number, kind: Kind, confirm?: string) => void; live: Set<number> }) {
   return (
     <div className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] p-3">
       <div className="mb-2 flex items-center justify-between">
@@ -108,7 +115,7 @@ function Lane({ title, tone, rows, act }: { title: string; tone: string; rows: S
       </div>
       <div className="flex flex-col gap-1.5">
         {rows.length === 0 && <div className="py-3 text-center text-xs text-[var(--color-text-muted)]">empty</div>}
-        {rows.map((r) => <Row key={r.pr_id} r={r} act={act} />)}
+        {rows.map((r) => <Row key={r.pr_id} r={r} act={act} live={live.has(r.pr_id)} />)}
       </div>
     </div>
   );
@@ -116,12 +123,16 @@ function Lane({ title, tone, rows, act }: { title: string; tone: string; rows: S
 
 export function QueueBoard() {
   const [data, setData] = useState<QueuesResp | null>(null);
+  const [live, setLive] = useState<Set<number>>(new Set());
   const [showClosed, setShowClosed] = useState(false);
   const load = () => fetch('/api/queues').then((r) => r.json()).then(setData).catch(() => {});
+  const loadLive = () => fetch('/api/active').then((r) => r.json())
+    .then((a) => setLive(new Set([...(a.reviewing || []), ...(a.takeover || [])]))).catch(() => {});
   useEffect(() => {
-    load();
+    load(); loadLive();
     const t = setInterval(load, 5000);
-    return () => clearInterval(t);
+    const tl = setInterval(loadLive, 2000);
+    return () => { clearInterval(t); clearInterval(tl); };
   }, []);
   const act = async (pr: number, kind: Kind, confirmMsg?: string) => {
     if (confirmMsg && !confirm(confirmMsg)) return;
@@ -134,8 +145,8 @@ export function QueueBoard() {
   return (
     <div className="mb-5">
       <div className="flex gap-3 items-start">
-        <Lane title="REVIEW QUEUE" tone="var(--color-accent)" rows={data.review} act={act} />
-        <Lane title="FIX QUEUE" tone="var(--color-yellow)" rows={data.fix} act={act} />
+        <Lane title="REVIEW QUEUE" tone="var(--color-accent)" rows={data.review} act={act} live={live} />
+        <Lane title="FIX QUEUE" tone="var(--color-yellow)" rows={data.fix} act={act} live={live} />
       </div>
 
       {data.issueGroups.length > 0 && (
@@ -164,7 +175,7 @@ export function QueueBoard() {
           </button>
           {showClosed && (
             <div className="mt-2 flex flex-col gap-1.5">
-              {closed.map((r) => <Row key={r.pr_id} r={r} act={act} />)}
+              {closed.map((r) => <Row key={r.pr_id} r={r} act={act} live={live.has(r.pr_id)} />)}
             </div>
           )}
         </div>
