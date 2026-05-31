@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type Cfg = { enabled: boolean; scout: string; review: string; stall: string };
 type JobState = { running: boolean; pid: number | null; lastRun: string | null; lastExit: number | null };
@@ -25,10 +25,14 @@ export function CronControl() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [open, setOpen] = useState(false);
+  // While the user is editing the schedule, the 5s poll must NOT overwrite the
+  // form with the server value (that would wipe in-progress edits).
+  const dirtyRef = useRef(false);
 
   const load = () =>
     fetch('/api/cron-config').then((r) => r.json()).then((d) => {
-      setCfg(d.config); setSched(d.scheduler); setCrontab(d.crontabInstalled);
+      if (!dirtyRef.current) setCfg(d.config);   // only refresh the form when not editing
+      setSched(d.scheduler); setCrontab(d.crontabInstalled);
     }).catch(() => {});
   useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, []);
 
@@ -42,6 +46,7 @@ export function CronControl() {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...cfg, ...override }),
       });
       const d = await r.json();
+      dirtyRef.current = false;            // saved — let polling refresh again
       setCfg(d.config); setSched(d.scheduler);
       setMsg('Saved — scheduler picks it up on the next tick.');
     } finally { setBusy(false); }
@@ -80,7 +85,7 @@ export function CronControl() {
                 </div>
                 <input
                   value={cfg[row.key] as string}
-                  onChange={(e) => setCfg({ ...cfg, [row.key]: e.target.value })}
+                  onChange={(e) => { dirtyRef.current = true; setCfg({ ...cfg, [row.key]: e.target.value }); }}
                   spellCheck={false}
                   className={'flex-1 rounded border bg-[var(--color-bg-secondary)] px-2 py-1 font-mono ' +
                     (validCron(cfg[row.key] as string) ? 'border-[var(--color-border)]' : 'border-[var(--color-red)]')}
